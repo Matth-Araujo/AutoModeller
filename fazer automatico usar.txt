@@ -1,0 +1,11 @@
+fazer automatico,
+usar o modelo 3d,
+no lugar do lista de montagem colocar estruturas passando,
+remover usarname => colocar email
+colocar senha do modeller => modeller orage a senha eu acho
+remover codigo/nome da sequencia
+remover ativar refinamento de loop
+em meus experimentos adiciona um + para comparar a sequencia que foi inserida com a do template e mostrar a estrutura 3d
+nome "AutoModeller WEB" remover o smosh
+
+

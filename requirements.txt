@@ -1,0 +1,6 @@
+Django>=5.0,<7.0
+should_dsl>=2.1.2
+matplotlib>=3.8.0
+numpy>=1.26.0
+asgiref>=3.8.0
+sqlparse>=0.5.0

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Entrar - Modeller Web{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow-sm mt-4">
+            <div class="card-header py-3 text-center">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-box-arrow-in-right text-primary me-2"></i>Entrar</h4>
+            </div>
+            <div class="card-body p-4">
+                {% if form.errors %}
+                    <div class="alert alert-danger small py-2">
+                        Usuário ou senha incorretos. Por favor, tente novamente.
+                    </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Usuário</label>
+                        <input type="text" name="username" class="form-control" autofocus required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Senha</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-primary btn-lg">Acessar</button>
+                    </div>
+                </form>
+
+                <div class="text-center small text-muted">
+                    Não tem uma conta? <a href="{% url 'register' %}" class="fw-semibold">Cadastre-se</a> ou continue no <a href="{% url 'experiment_create' %}">modo avulso</a>.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

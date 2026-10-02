@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+
+{% block title %}Modeller Web - Modelagem Molecular Automatizada com Smosh{% endblock %}
+
+{% block content %}
+<div class="hero-banner shadow">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <span class="badge bg-light text-primary px-3 py-2 rounded-pill fw-semibold mb-3">
+                <i class="bi bi-cpu me-1"></i> Smosh + Modeller 10.7 Automatizado
+            </span>
+            <h1 class="display-5 fw-bold mb-3">Modelagem Molecular 3D Descomplicada</h1>
+            <p class="lead mb-4 opacity-90">
+                Execute toda a esteira do Modeller (busca de templates homólogos, alinhamento, construção dos modelos e perfil energético DOPE) de forma 100% automatizada.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'experiment_create' %}" class="btn btn-light btn-lg px-4 fw-semibold text-primary">
+                    <i class="bi bi-play-circle-fill me-2"></i> Iniciar Experimento Avulso
+                </a>
+                <a href="{% url 'experiment_create' %}?sample=1" class="btn btn-outline-light btn-lg px-4">
+                    <i class="bi bi-lightning-charge-fill me-2"></i> Carregar Exemplo (TvLDH)
+                </a>
+                {% if not user.is_authenticated %}
+                <a href="{% url 'register' %}" class="btn btn-dark btn-lg px-3">
+                    <i class="bi bi-person-plus me-1"></i> Criar Conta
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-4 text-center d-none d-lg-block">
+            <div class="p-4 bg-white bg-opacity-10 rounded-4 border border-white border-opacity-25">
+                <i class="bi bi-diagram-3-fill display-1 text-white opacity-75"></i>
+                <div class="mt-2 text-white fw-semibold">Visualizador 3D Integrado</div>
+                <div class="small text-white opacity-75">Gráficos de Perfil DOPE e Download de PDBs</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Como Funciona a Linha de Montagem -->
+<div class="mb-5">
+    <div class="text-center mb-4">
+        <h3 class="fw-bold">Linha de Montagem Automatizada</h3>
+        <p class="text-muted">O smosh orquestra cada etapa do Modeller sem que você precise escrever scripts manualmente.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100 p-3">
+                <div class="card-body">
+                    <div class="step-icon-box bg-primary-subtle text-primary">
+                        <i class="bi bi-file-earmark-code"></i>
+                    </div>
+                    <h5 class="fw-bold">1. Sequência Alvo</h5>
+                    <p class="text-muted small">
+                        Recebe a sequência da sua proteína em formato PIR ou FASTA puro via upload de arquivo ou colando o texto diretamente.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 p-3">
+                <div class="card-body">
+                    <div class="step-icon-box bg-success-subtle text-success">
+                        <i class="bi bi-search"></i>
+                    </div>
+                    <h5 class="fw-bold">2. Busca de Moldes</h5>
+                    <p class="text-muted small">
+                        O <code>FindTemplatesStep</code> varre o banco de estruturas <code>pdb_95</code>, calcula perfis de similaridade e seleciona o melhor candidato.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 p-3">
+                <div class="card-body">
+                    <div class="step-icon-box bg-info-subtle text-info">
+                        <i class="bi bi-filter-square"></i>
+                    </div>
+                    <h5 class="fw-bold">3. Limpeza & Alinhamento</h5>
+                    <p class="text-muted small">
+                        Baixa o PDB via RCSB, remove cadeias excedentes (<code>PDBFile</code>), extrai a sequência e executa o alinhamento 2D (<code>AlignStep</code>).
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 p-3">
+                <div class="card-body">
+                    <div class="step-icon-box bg-warning-subtle text-warning">
+                        <i class="bi bi-boxes"></i>
+                    </div>
+                    <h5 class="fw-bold">4. Modelagem 3D</h5>
+                    <p class="text-muted small">
+                        O <code>BuildModelStep</code> instrui o Modeller Automodel a construir múltiplos modelos 3D candidatos (por padrão 5 variações).
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 p-3">
+                <div class="card-body">
+                    <div class="step-icon-box bg-danger-subtle text-danger">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <h5 class="fw-bold">5. Avaliação Energética</h5>
+                    <p class="text-muted small">
+                        Gera perfis energéticos DOPE comparando o molde original e os modelos produzidos com geração automática do gráfico em alta resolução.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 p-3">
+                <div class="card-body">
+                    <div class="step-icon-box bg-secondary-subtle text-secondary">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </div>
+                    <h5 class="fw-bold">6. Refinamento de Loop</h5>
+                    <p class="text-muted small">
+                        (Opcional) Refinamento fino por dinâmica molecular em regiões flexíveis ou inserções específicas sem precisar remontar a proteína inteira.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Experimentos Recentes -->
+{% if recent_experiments %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history me-2"></i>Seus Experimentos Recentes</span>
+        <a href="{% url 'experiment_list' %}" class="btn btn-outline-primary btn-sm">Ver Todos</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Título</th>
+                        <th>Proteína</th>
+                        <th>Status</th>
+                        <th>Melhor Modelo</th>
+                        <th>DOPE Score</th>
+                        <th>Criado em</th>
+                        <th class="text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exp in recent_experiments %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'experiment_detail' uuid=exp.uuid %}" class="fw-semibold text-decoration-none">
+                                {{ exp.title }}
+                            </a>
+                        </td>
+                        <td><code>{{ exp.sequence_name }}</code></td>
+                        <td>
+                            {% if exp.status == 'COMPLETED' %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Concluído</span>
+                            {% elif exp.status == 'RUNNING' %}
+                                <span class="badge bg-primary"><i class="bi bi-arrow-repeat me-1"></i>Executando</span>
+                            {% elif exp.status == 'FAILED' %}
+                                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Falhou</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Pendente</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ exp.best_model_name|default:"-" }}</td>
+                        <td>
+                            {% if exp.best_dope_score %}
+                                <span class="fw-bold">{{ exp.best_dope_score|floatformat:2 }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ exp.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'experiment_detail' uuid=exp.uuid %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Detalhes
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Diferencial Modo Avulso vs Usuário -->
+<div class="row g-4 mt-2">
+    <div class="col-md-6">
+        <div class="card h-100 border-primary">
+            <div class="card-body">
+                <h5 class="card-title text-primary"><i class="bi bi-incognito me-2"></i>Modo Avulso (Convidado)</h5>
+                <p class="card-text text-muted">
+                    Ideal para testes imediatos sem necessidade de criar conta ou memorizar senhas. O experimento fica vinculado à sua sessão no navegador e pode ser acessado pelo link exclusivo.
+                </p>
+                <a href="{% url 'experiment_create' %}" class="btn btn-outline-primary btn-sm">Criar Experimento Avulso</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100 border-success">
+            <div class="card-body">
+                <h5 class="card-title text-success"><i class="bi bi-person-check-fill me-2"></i>Conta de Pesquisador</h5>
+                <p class="card-text text-muted">
+                    Salve e centralize todo o seu histórico de modelagens, acesse de qualquer dispositivo e reivindique experimentos avulsos criados anteriormente com apenas um clique.
+                </p>
+                {% if not user.is_authenticated %}
+                <a href="{% url 'register' %}" class="btn btn-outline-success btn-sm">Criar Conta Gratuita</a>
+                {% else %}
+                <a href="{% url 'experiment_list' %}" class="btn btn-outline-success btn-sm">Acessar Meu Histórico</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

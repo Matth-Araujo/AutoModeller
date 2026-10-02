@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+db.sqlite3
+media/workspaces/
+media/zips/
+staticfiles/
+*.tar.gz
+smosh_guia_simples.pdf

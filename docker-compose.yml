@@ -1,0 +1,15 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: modeller_web_app
+    ports:
+      - "${PORT:-8080}:8000"
+    volumes:
+      - ./modeller_web/media:/app/modeller_web/media
+      - ./modeller_web/db.sqlite3:/app/modeller_web/db.sqlite3
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SMOSH_MODELLER_PYTHON=/usr/local/bin/python3
+    restart: unless-stopped
