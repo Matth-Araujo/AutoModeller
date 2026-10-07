@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -68,11 +69,20 @@
             font-size: 0.875rem;
         }
         .hero-banner {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            background-color: #0f172a;
+            background-image: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 58, 138, 0.82) 50%, rgba(14, 116, 144, 0.65) 100%),
+                              url("{% static 'images/Molecular_Azul.webp' %}");
+            background-position: center right;
+            background-size: cover;
+            background-repeat: no-repeat;
             color: white;
             border-radius: 16px;
-            padding: 3rem 2rem;
+            padding: 3.5rem 2.5rem;
             margin-bottom: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.35);
         }
         .step-icon-box {
             width: 48px;

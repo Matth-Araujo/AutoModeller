@@ -49,7 +49,7 @@
             </div>
         </div>
         <div class="col-lg-4 text-center d-none d-lg-block">
-            <div class="p-4 bg-white bg-opacity-10 rounded-4 border border-white border-opacity-25">
+            <div class="p-4 bg-white bg-opacity-10 rounded-4 border border-white border-opacity-25 shadow-sm" style="backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
                 <i class="bi bi-badge-3d display-1 text-white opacity-75"></i>
                 <div class="mt-2 text-white fw-semibold">
                     {% if is_pt %}Visualizador HTML5 3Dmol.js{% else %}HTML5 3Dmol.js Viewer{% endif %}
@@ -69,18 +69,24 @@
             <div>
                 <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
                     <i class="bi bi-badge-3d text-primary fs-3"></i>
-                    <span>{% if is_pt %}Estruturas 3D em Destaque{% else %}Featured 3D Structures{% endif %}</span>
+                    <span>{% if is_pt %}Estruturas 3D em Destaque do Dia{% else %}Today's Featured 3D Structures{% endif %}</span>
+                    <span class="badge bg-primary-subtle text-primary border fs-7" id="badge-today-date" title="{% if is_pt %}Data da seleção atual{% else %}Date of current selection{% endif %}">
+                        <i class="bi bi-calendar-event me-1"></i>{{ today_str }}
+                    </span>
                 </h3>
                 <p class="text-muted small mb-0">
                     {% if is_pt %}
-                        Galeria dinâmica de estruturas macromoleculares renderizadas diretamente no navegador via <strong>3Dmol.js (HTML5 / WebGL)</strong>.
+                        Galeria dinâmica atualizada diariamente com estruturas biológicas notáveis renderizadas via <strong>3Dmol.js (HTML5 / WebGL)</strong>.
                     {% else %}
-                        Dynamic gallery of macromolecular structures rendered directly in your browser using <strong>3Dmol.js (HTML5 / WebGL)</strong>.
+                        Dynamic gallery updated daily with remarkable biological structures rendered via <strong>3Dmol.js (HTML5 / WebGL)</strong>.
                     {% endif %}
                 </p>
             </div>
             <!-- Controles do Carrossel de Estruturas -->
             <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-info btn-sm shadow-sm" id="btn-shuffle-structs" title="{% if is_pt %}Sortear outras 4 estruturas do catálogo{% else %}Shuffle 4 other structures from catalog{% endif %}">
+                    <i class="bi bi-shuffle"></i> {% if is_pt %}Sortear Novas{% else %}Shuffle New{% endif %}
+                </button>
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-prev-struct" title="{% if is_pt %}Estrutura Anterior{% else %}Previous Structure{% endif %}">
                     <i class="bi bi-chevron-left"></i> {% if is_pt %}Anterior{% else %}Previous{% endif %}
                 </button>
@@ -169,12 +175,15 @@
                         </div>
                     </div>
 
-                    <div class="d-flex gap-2">
-                        <a href="{% url 'experiment_create' %}?sample=1" class="btn btn-primary btn-sm flex-grow-1">
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="{% url 'experiment_create' %}?sample=1" class="btn btn-primary btn-sm flex-grow-1" id="btn-action-model">
                             <i class="bi bi-play-circle-fill me-1"></i>
-                            {% if is_pt %}Modelar Esta Estrutura{% else %}Model This Structure{% endif %}
+                            <span id="label-action-model">{% if is_pt %}Modelar Esta Estrutura{% else %}Model This Structure{% endif %}</span>
                         </a>
-                        <a id="btn-download-pdb" href="/static/pdb/TvLDH.pdb" download class="btn btn-outline-secondary btn-sm">
+                        <a id="btn-rcsb-pdb" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline-info btn-sm d-none" title="{% if is_pt %}Ver entrada oficial no RCSB Protein Data Bank{% else %}View official entry on RCSB Protein Data Bank{% endif %}">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> RCSB
+                        </a>
+                        <a id="btn-download-pdb" href="/static/pdb/TvLDH.pdb" download class="btn btn-outline-secondary btn-sm" title="{% if is_pt %}Baixar coordenadas atômicas em formato .PDB{% else %}Download atomic coordinates in .PDB format{% endif %}">
                             <i class="bi bi-download me-1"></i> PDB
                         </a>
                     </div>
@@ -317,63 +326,10 @@
 {% block extra_scripts %}
 <script>
     const isPt = {{ is_pt|yesno:"true,false" }};
+    const todayStr = "{{ today_str }}";
 
-    // Catálogo Bilíngue de Estruturas Moleculares 3D em Destaque
-    const structures = [
-        {
-            id: "TvLDH",
-            name: isPt ? "Lactato Desidrogenase" : "Lactate Dehydrogenase",
-            organism: "Trichomonas vaginalis",
-            badge: isPt ? "Modelo Homólogo" : "Homology Model",
-            badgeClass: "bg-primary",
-            desc: isPt 
-                ? "Enzima metabólica modelada automaticamente por homologia comparativa a partir do molde cristalográfico 1bdm. Otimizada via restrições espaciais e DOPE no AutoModeller WEB."
-                : "Metabolic enzyme comparative model built automatically by AutoModeller WEB from template 1bdm. Optimized with spatial restraint satisfaction and DOPE energy assessment.",
-            type: isPt ? "Modelo AutoModeller 3D" : "AutoModeller 3D Model",
-            metric: "-38421.5 DOPE (Optimal)",
-            pdbUrl: "/static/pdb/TvLDH.pdb"
-        },
-        {
-            id: "1bdm",
-            name: isPt ? "Malato Desidrogenase" : "Malate Dehydrogenase",
-            organism: "Thermus flavus",
-            badge: isPt ? "Molde Cristalográfico" : "Crystallographic Template",
-            badgeClass: "bg-success",
-            desc: isPt
-                ? "Estrutura cristalográfica de referência de alta resolução (1.80 Å) utilizada como template homólogo para a modelagem da lactato desidrogenase."
-                : "High-resolution (1.80 Å) reference crystallographic structure used as homologous template for modeling lactate dehydrogenase.",
-            type: isPt ? "Cristalografia de Raio-X" : "X-Ray Crystallography",
-            metric: isPt ? "Resolução 1.80 Å" : "1.80 Å Resolution",
-            pdbUrl: "/static/pdb/1bdm.pdb"
-        },
-        {
-            id: "1crn",
-            name: "Crambin",
-            organism: "Crambe hispanica",
-            badge: isPt ? "Proteína Hidrofóbica" : "Hydrophobic Plant Protein",
-            badgeClass: "bg-info text-dark",
-            desc: isPt
-                ? "Pequena proteína vegetal rica em pontes dissulfeto e altamente estável. Uma das estruturas canônicas mais refinadas em biologia estrutural (0.83 Å)."
-                : "Small plant protein rich in disulfide bonds and highly stable. One of the most refined canonical structures in structural biology (0.83 Å).",
-            type: isPt ? "Ultra-Alta Resolução" : "Ultra-High Resolution",
-            metric: isPt ? "Resolução 0.83 Å" : "0.83 Å Resolution",
-            pdbUrl: "/static/pdb/1crn.pdb"
-        },
-        {
-            id: "1ubq",
-            name: isPt ? "Ubiquitina Humana" : "Human Ubiquitin",
-            organism: "Homo sapiens",
-            badge: isPt ? "Sinalização Celular" : "Cellular Signaling",
-            badgeClass: "bg-warning text-dark",
-            desc: isPt
-                ? "Proteína regulatória ubíqua fundamental na degradação proteassômica e regulação celular. Possui dobra globular mista extremamente conservada."
-                : "Ubiquitous regulatory protein critical in proteasomal degradation and cell regulation. Exhibits an extremely conserved mixed globular fold.",
-            type: isPt ? "Regulação Eucariótica" : "Eukaryotic Regulation",
-            metric: isPt ? "Resolução 1.80 Å" : "1.80 Å Resolution",
-            pdbUrl: "/static/pdb/1ubq.pdb"
-        }
-    ];
-
+    // Estruturas do dia fornecidas deterministicamente pelo backend
+    let structures = {{ featured_structures_json|safe }};
     let currentIdx = 0;
     let homeViewer = null;
     let isHomeSpinning = true;
@@ -381,6 +337,7 @@
     let homeColor = 'spectrum';
     let autoAdvanceInterval = null;
     let isAutoPlaying = true;
+    let shuffleOffset = 0;
 
     function initHomeViewer() {
         const element = document.getElementById('home-mol-viewer');
@@ -431,10 +388,35 @@
         badgeElem.textContent = st.badge;
         badgeElem.className = `badge ${st.badgeClass} px-3 py-1 fs-7`;
 
+        // Botão de Download PDB
         const downloadBtn = document.getElementById('btn-download-pdb');
         if (downloadBtn) {
             downloadBtn.href = st.pdbUrl;
             downloadBtn.setAttribute('download', `${st.id}.pdb`);
+        }
+
+        // Botão RCSB PDB
+        const rcsbBtn = document.getElementById('btn-rcsb-pdb');
+        if (rcsbBtn) {
+            if (st.rcsbUrl) {
+                rcsbBtn.href = st.rcsbUrl;
+                rcsbBtn.classList.remove('d-none');
+            } else {
+                rcsbBtn.classList.add('d-none');
+            }
+        }
+
+        // Botão de Modelar
+        const modelBtn = document.getElementById('btn-action-model');
+        const modelLabel = document.getElementById('label-action-model');
+        if (modelBtn && modelLabel) {
+            if (st.isSample) {
+                modelBtn.href = "{% url 'experiment_create' %}?sample=1";
+                modelLabel.textContent = isPt ? "Modelar Esta Estrutura" : "Model This Structure";
+            } else {
+                modelBtn.href = "{% url 'experiment_create' %}";
+                modelLabel.textContent = isPt ? "Modelar no AutoModeller" : "Model in AutoModeller";
+            }
         }
 
         renderThumbnails();
@@ -442,9 +424,10 @@
         const loading = document.getElementById('home-viewer-loading');
         if (loading) loading.classList.remove('d-none');
 
+        // Tenta carregar o arquivo PDB local; caso não exista, baixa do RCSB diretamente
         fetch(st.pdbUrl)
             .then(res => {
-                if (!res.ok) throw new Error("PDB local not found");
+                if (!res.ok) throw new Error("Local PDB file not found");
                 return res.text();
             })
             .then(pdbData => {
@@ -457,15 +440,42 @@
                 if (loading) loading.classList.add('d-none');
             })
             .catch(err => {
-                console.warn("RCSB fallback for:", st.id, err);
+                console.warn("Falling back to RCSB download for:", st.id, err);
                 homeViewer.clear();
-                $3Dmol.download(`pdb:${st.id}`, homeViewer, {}, function() {
+                const remoteId = st.id.replace(/\.pdb$/i, '');
+                $3Dmol.download(`pdb:${remoteId}`, homeViewer, {}, function() {
                     applyHomeStyle();
                     homeViewer.zoomTo();
                     homeViewer.render();
                     homeViewer.spin(isHomeSpinning);
                     if (loading) loading.classList.add('d-none');
                 });
+            });
+    }
+
+    function shuffleStructures() {
+        shuffleOffset += 1;
+        const shuffleBtn = document.getElementById('btn-shuffle-structs');
+        if (shuffleBtn) {
+            shuffleBtn.disabled = true;
+            shuffleBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> ...';
+        }
+
+        fetch(`{% url 'featured_shuffle_api' %}?offset=${shuffleOffset}&lang=${isPt ? 'pt' : 'en'}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok' && data.structures && data.structures.length > 0) {
+                    structures = data.structures;
+                    renderThumbnails();
+                    loadStructure(0);
+                }
+            })
+            .catch(err => console.error("Error shuffling structures:", err))
+            .finally(() => {
+                if (shuffleBtn) {
+                    shuffleBtn.disabled = false;
+                    shuffleBtn.innerHTML = `<i class="bi bi-shuffle"></i> ${isPt ? 'Sortear Novas' : 'Shuffle New'}`;
+                }
             });
     }
 
@@ -586,10 +596,12 @@
         const btnNext = document.getElementById('btn-next-struct');
         const btnPrev = document.getElementById('btn-prev-struct');
         const btnToggle = document.getElementById('btn-toggle-auto');
+        const btnShuffle = document.getElementById('btn-shuffle-structs');
 
         if (btnNext) btnNext.addEventListener('click', nextStructure);
         if (btnPrev) btnPrev.addEventListener('click', prevStructure);
         if (btnToggle) btnToggle.addEventListener('click', toggleAutoPlay);
+        if (btnShuffle) btnShuffle.addEventListener('click', shuffleStructures);
     });
 </script>
 {% endblock %}

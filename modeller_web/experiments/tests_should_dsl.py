@@ -180,6 +180,48 @@ class ExperimentViewsShouldDslTests(TestCase):
         user.email |should| equal_to('novo@laboratorio.org')
         user.username |should| equal_to('novo@laboratorio.org')
 
+    def test_daily_featured_structures_rotation(self):
+        from experiments.featured import get_daily_featured_structures, FEATURED_CATALOG
+        import datetime
+
+        d1 = datetime.date(2026, 10, 7)
+        d2 = datetime.date(2026, 10, 8)
+
+        structs_d1 = get_daily_featured_structures(target_date=d1, count=4, is_pt=True)
+        structs_d2 = get_daily_featured_structures(target_date=d2, count=4, is_pt=True)
+
+        len(structs_d1) |should| equal_to(4)
+        len(structs_d2) |should| equal_to(4)
+
+        # A seleção deve ser determinística no mesmo dia
+        structs_d1_repeat = get_daily_featured_structures(target_date=d1, count=4, is_pt=True)
+        [s['id'] for s in structs_d1] |should| equal_to([s['id'] for s in structs_d1_repeat])
+
+        # Cada estrutura deve ter chaves essenciais
+        for s in structs_d1:
+            ('id' in s) |should| equal_to(True)
+            ('name' in s) |should| equal_to(True)
+            ('organism' in s) |should| equal_to(True)
+            ('badge' in s) |should| equal_to(True)
+            ('desc' in s) |should| equal_to(True)
+            ('pdbUrl' in s) |should| equal_to(True)
+
+    def test_featured_shuffle_api(self):
+        response = self.client.get('/api/featured/shuffle/?offset=3')
+        response.status_code |should| equal_to(200)
+
+        data = response.json()
+        data['status'] |should| equal_to('ok')
+        data['offset'] |should| equal_to(3)
+        len(data['structures']) |should| equal_to(4)
+
+    def test_home_page_featured_structures(self):
+        response = self.client.get('/')
+        response.status_code |should| equal_to(200)
+        ('featured_structures' in response.context) |should| equal_to(True)
+        len(response.context['featured_structures']) |should| equal_to(4)
+        ('today_str' in response.context) |should| equal_to(True)
+
 
 if __name__ == '__main__':
     unittest.main()

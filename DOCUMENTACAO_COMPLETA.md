@@ -412,7 +412,7 @@ Se preferir rodar nativamente na sua máquina (onde o Modeller 10.7 e Python 3 j
 
 ```bash
 # 1. Navegue até a pasta do projeto Django:
-cd /home/matheus/IC/Projeto_modeller/modeller_web
+cd caminho_ate_pasta
 
 # 2. Execute as migrações do banco de dados (caso não tenham sido executadas):
 python3 manage.py migrate

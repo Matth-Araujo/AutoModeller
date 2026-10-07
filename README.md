@@ -87,7 +87,7 @@ Acesse a aplicação no navegador em: `http://localhost:8080` (ou na porta confi
 ### 2. Execução Local
 
 ```bash
-cd /home/matheus/IC/Projeto_modeller/modeller_web
+cd caminho_ate_pasta
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 ```

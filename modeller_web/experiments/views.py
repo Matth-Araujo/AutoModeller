@@ -1,4 +1,5 @@
 import os
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, FileResponse, Http404
 from django.contrib.auth import login, logout
@@ -6,10 +7,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.http import require_GET, require_POST
 from django.conf import settings
+from django.utils import timezone
 
 from .models import Experiment, ExperimentResultModel, TemplateCandidate
 from .forms import ExperimentCreateForm, RegisterForm
 from .services import start_experiment_async, create_experiment_zip
+from .featured import get_daily_featured_structures
 
 SAMPLE_TVLDH_PIR = """>P1;TvLDH
 sequence:TvLDH:::::::0.00: 0.00
@@ -32,8 +35,9 @@ def _is_pt(request):
 
 
 def home(request):
-    """Página inicial com apresentação, chamada para ação e resumo."""
+    """Página inicial com apresentação, chamada para ação e estruturas em destaque do dia."""
     session_key = _ensure_session_key(request)
+    is_pt = _is_pt(request)
 
     recent_experiments = []
     if request.user.is_authenticated:
@@ -41,8 +45,32 @@ def home(request):
     else:
         recent_experiments = Experiment.objects.filter(session_key=session_key)[:5]
 
+    today = timezone.localdate()
+    today_str = today.strftime('%d/%m/%Y') if is_pt else today.strftime('%Y-%m-%d')
+    featured_structures = get_daily_featured_structures(target_date=today, count=4, is_pt=is_pt)
+
     return render(request, 'experiments/home.html', {
         'recent_experiments': recent_experiments,
+        'today_str': today_str,
+        'featured_structures': featured_structures,
+        'featured_structures_json': json.dumps(featured_structures),
+    })
+
+
+@require_GET
+def featured_shuffle_api(request):
+    """Retorna uma nova seleção de estruturas sorteadas sob demanda."""
+    is_pt = _is_pt(request)
+    try:
+        offset = int(request.GET.get('offset', 0))
+    except (ValueError, TypeError):
+        offset = 0
+
+    structures = get_daily_featured_structures(count=4, seed_offset=offset, is_pt=is_pt)
+    return JsonResponse({
+        'status': 'ok',
+        'structures': structures,
+        'offset': offset,
     })
 
 
