@@ -79,6 +79,32 @@ class Experiment(models.Model):
     def best_result_model(self):
         return self.result_models.filter(is_best=True).first()
 
+    @property
+    def selected_candidate(self):
+        return self.candidates.filter(is_selected=True).first()
+
+    @property
+    def alignment_pap_content(self):
+        if self.alignment_pap:
+            try:
+                if os.path.exists(self.alignment_pap.path):
+                    with open(self.alignment_pap.path, 'r', encoding='utf-8', errors='ignore') as f:
+                        return f.read().strip()
+            except Exception:
+                pass
+        return None
+
+    @property
+    def alignment_pir_content(self):
+        if self.alignment_pir:
+            try:
+                if os.path.exists(self.alignment_pir.path):
+                    with open(self.alignment_pir.path, 'r', encoding='utf-8', errors='ignore') as f:
+                        return f.read().strip()
+            except Exception:
+                pass
+        return None
+
 
 class ExperimentResultModel(models.Model):
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, related_name='result_models')

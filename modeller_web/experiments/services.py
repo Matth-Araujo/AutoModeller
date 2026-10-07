@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import zipfile
 import threading
@@ -24,6 +25,22 @@ from smosh.ModelingTools.GetDataFromPDB import GetDataFromPDB
 from smosh.ModelingTools.PDBFile import PDBFile
 from smosh.ModelingTools.AlignFile import AlignFile
 from smosh.Exceptions.ModellerException import ModellerException
+
+# Garante que a chave de licença oficial do Modeller (MODELIRANJE) e os caminhos estejam no ambiente
+os.environ.setdefault('KEY_MODELLER', getattr(settings, 'KEY_MODELLER', 'MODELIRANJE'))
+mod_install = os.environ.get('MODINSTALL10v7', '/usr/lib/modeller10.7')
+mod_lib = os.path.join(mod_install, 'lib', 'x86_64-intel8')
+mod_py33 = os.path.join(mod_lib, 'python3.3')
+mod_modlib = os.path.join(mod_install, 'modlib')
+
+for _p in [mod_py33, mod_modlib]:
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
+if mod_lib in sys.path:
+    sys.path.remove(mod_lib)
+
+if mod_lib not in os.environ.get('LD_LIBRARY_PATH', ''):
+    os.environ['LD_LIBRARY_PATH'] = f"{mod_lib}:{os.environ.get('LD_LIBRARY_PATH', '')}"
 
 
 def parse_pdb_scores(pdb_path):
@@ -170,12 +187,20 @@ def run_pipeline(experiment_id):
         profile_of_templates = TemplateProfile(profile_prf_path)
         candidates = profile_of_templates.list_of_sequences
 
+        # Filtra apenas sequências estruturais (tipo 'X') diferentes da sequência alvo
+        valid_candidates = [
+            c for c in candidates 
+            if c.name() and c.name().lower() != seq_name.lower() and getattr(c, 'type', lambda: 'X')() != 'S'
+        ]
+        if not valid_candidates:
+            valid_candidates = [c for c in candidates if c.name() and c.name().lower() != seq_name.lower()]
+
         # Registrar candidatos a molde no banco
         TemplateCandidate.objects.filter(experiment=experiment).delete()
-        for cand in candidates[:15]:  # Armazena os 15 melhores
+        for cand in valid_candidates[:15]:  # Armazena os 15 melhores
             try:
                 cand_code = cand.name()
-                cand_id = float(cand.identity())
+                cand_id = float(cand.identity() or 0)
                 TemplateCandidate.objects.create(
                     experiment=experiment,
                     code=cand_code,
@@ -187,10 +212,10 @@ def run_pipeline(experiment_id):
                 pass
 
         # Selecionar o melhor template (ou template escolhido pelo usuário)
-        if experiment.selected_template:
+        if experiment.selected_template and experiment.selected_template.strip().lower() != seq_name.lower():
             best_template_code = experiment.selected_template.strip()
         else:
-            better_profile = profile_of_templates.getBetterProfile()
+            better_profile = max(valid_candidates, key=lambda c: float(c.identity() or 0)) if valid_candidates else profile_of_templates.getBetterProfile()
             best_template_code = better_profile.name()
             experiment.selected_template = best_template_code
 

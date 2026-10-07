@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 
-{% block title %}Novo Experimento - Modeller Web{% endblock %}
+{% block title %}
+    {% if is_pt %}Novo Experimento - AutoModeller WEB{% else %}New Experiment - AutoModeller WEB{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -8,15 +10,16 @@
         <div class="card shadow-sm">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold">
-                    <i class="bi bi-cpu text-primary me-2"></i>Novo Experimento de Modelagem Molecular
+                    <i class="bi bi-cpu text-primary me-2"></i>
+                    {% if is_pt %}Novo Experimento de Modelagem Molecular 3D{% else %}New 3D Molecular Modeling Experiment{% endif %}
                 </h5>
                 {% if is_guest %}
                     <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
-                        <i class="bi bi-incognito me-1"></i> Modo Avulso
+                        <i class="bi bi-incognito me-1"></i> {% if is_pt %}Modo Avulso{% else %}Guest Mode{% endif %}
                     </span>
                 {% else %}
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                        <i class="bi bi-person-check me-1"></i> {{ user.username }}
+                        <i class="bi bi-person-check me-1"></i> {{ user.first_name|default:user.email|default:user.username }}
                     </span>
                 {% endif %}
             </div>
@@ -26,15 +29,22 @@
                 <div class="alert alert-light border d-flex justify-content-between align-items-center py-2 px-3 mb-4">
                     <div class="small text-muted">
                         <i class="bi bi-info-circle text-primary me-2"></i>
-                        Você está no <strong>modo avulso</strong>. O experimento será iniciado imediatamente sem necessidade de login.
+                        {% if is_pt %}
+                            Você está no <strong>modo avulso</strong>. O experimento será iniciado imediatamente sem necessidade de login.
+                        {% else %}
+                            You are in <strong>guest mode</strong>. The experiment will start immediately without requiring sign-in.
+                        {% endif %}
                     </div>
-                    <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm">Fazer Login</a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-primary btn-sm">
+                        {% if is_pt %}Fazer Login{% else %}Sign In{% endif %}
+                    </a>
                 </div>
                 {% endif %}
 
                 <div class="d-flex justify-content-end mb-3">
                     <a href="{% url 'experiment_create' %}?sample=1" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Preencher com Exemplo (TvLDH)
+                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i>
+                        {% if is_pt %}Preencher com Exemplo (TvLDH){% else %}Load Example (TvLDH){% endif %}
                     </a>
                 </div>
 
@@ -47,87 +57,78 @@
                         </div>
                     {% endif %}
 
-                    <!-- Título e Identificador -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-8">
-                            <label class="form-label fw-semibold">Título do Experimento *</label>
-                            {{ form.title }}
-                            {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Código / Nome da Sequência *</label>
-                            {{ form.sequence_name }}
-                            {% if form.sequence_name.errors %}<div class="text-danger small mt-1">{{ form.sequence_name.errors }}</div>{% endif %}
+                    <!-- Título do Experimento (Opcional) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            {% if is_pt %}Título do Experimento (opcional){% else %}Experiment Title (optional){% endif %}
+                        </label>
+                        {{ form.title }}
+                        {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+                        <div class="form-text small">
+                            {% if is_pt %}
+                                Se deixar em branco, geramos um título descritivo automaticamente.
+                            {% else %}
+                                If left blank, a descriptive title will be generated automatically.
+                            {% endif %}
                         </div>
                     </div>
 
                     <!-- Descrição -->
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Descrição ou Objetivo (opcional)</label>
+                        <label class="form-label fw-semibold">
+                            {% if is_pt %}Descrição ou Observações (opcional){% else %}Description or Notes (optional){% endif %}
+                        </label>
                         {{ form.description }}
                         {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors }}</div>{% endif %}
                     </div>
 
-                    <!-- Formato da Sequência -->
+                    <!-- Formato e Upload da Sequência -->
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Formato da Sequência *</label>
+                            <label class="form-label fw-semibold">
+                                {% if is_pt %}Formato da Sequência{% else %}Sequence Format{% endif %}
+                            </label>
                             {{ form.sequence_type }}
                             {% if form.sequence_type.errors %}<div class="text-danger small mt-1">{{ form.sequence_type.errors }}</div>{% endif %}
                         </div>
                         <div class="col-md-8">
-                            <label class="form-label fw-semibold">Upload de Arquivo (.pir, .fasta, .txt)</label>
+                            <label class="form-label fw-semibold">
+                                {% if is_pt %}Upload de Arquivo (.pir, .fasta, .txt){% else %}Upload File (.pir, .fasta, .txt){% endif %}
+                            </label>
                             {{ form.sequence_file }}
                             {% if form.sequence_file.errors %}<div class="text-danger small mt-1">{{ form.sequence_file.errors }}</div>{% endif %}
-                            <div class="form-text">Caso envie um arquivo, o campo de texto abaixo será preenchido automaticamente com seu conteúdo.</div>
+                            <div class="form-text small">
+                                {% if is_pt %}
+                                    Caso envie um arquivo, o conteúdo e o identificador são extraídos automaticamente.
+                                {% else %}
+                                    If a file is provided, content and identifier are extracted automatically.
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
 
                     <!-- Texto da Sequência -->
                     <div class="mb-4">
-                        <label class="form-label fw-semibold">Conteúdo da Sequência *</label>
+                        <label class="form-label fw-semibold">
+                            {% if is_pt %}Conteúdo da Sequência *{% else %}Sequence Content *{% endif %}
+                        </label>
                         {{ form.sequence_text }}
                         {% if form.sequence_text.errors %}<div class="text-danger small mt-1">{{ form.sequence_text.errors }}</div>{% endif %}
-                        <div class="form-text">
-                            Cole aqui a sequência da proteína alvo em formato <strong>PIR</strong> (com cabeçalho <code>&gt;P1;...</code> e asterisco <code>*</code> final) ou <strong>FASTA</strong>.
+                        <div class="form-text small">
+                            {% if is_pt %}
+                                Cole a sequência da proteína alvo em formato <strong>PIR</strong> (com <code>&gt;P1;...</code>) ou <strong>FASTA</strong> (com <code>&gt;...</code>).
+                            {% else %}
+                                Paste the target protein sequence in <strong>PIR</strong> (with <code>&gt;P1;...</code>) or <strong>FASTA</strong> (with <code>&gt;...</code>) format.
+                            {% endif %}
                         </div>
                     </div>
 
-                    <!-- Configurações Avançadas: Refinamento de Loop -->
-                    <div class="card border-light-subtle bg-light bg-opacity-50 mb-4">
-                        <div class="card-body">
-                            <div class="form-check form-switch mb-3">
-                                {{ form.enable_loop_refinement }}
-                                <label class="form-check-label fw-semibold" for="enable_loop_check">
-                                    Ativar Refinamento de Loop (LoopRefinementStep)
-                                </label>
-                            </div>
-                            <div id="loop_options" class="row g-3" style="display: none;">
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold">Resíduo Inicial do Loop</label>
-                                    {{ form.loop_start }}
-                                    {% if form.loop_start.errors %}<div class="text-danger small mt-1">{{ form.loop_start.errors }}</div>{% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-semibold">Resíduo Final do Loop</label>
-                                    {{ form.loop_end }}
-                                    {% if form.loop_end.errors %}<div class="text-danger small mt-1">{{ form.loop_end.errors }}</div>{% endif %}
-                                </div>
-                                <div class="col-12">
-                                    <div class="text-muted small">
-                                        O Modeller gerará 5 variações adicionais refinando apenas essa região com dinâmica molecular rápida.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center pt-2">
                         <a href="{% url 'home' %}" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-1"></i> Cancelar
+                            <i class="bi bi-arrow-left me-1"></i> {% if is_pt %}Cancelar{% else %}Cancel{% endif %}
                         </a>
-                        <button type="submit" class="btn btn-primary btn-lg px-4">
-                            <i class="bi bi-play-fill me-1"></i> Iniciar Modelagem Automatizada
+                        <button type="submit" class="btn btn-primary btn-lg px-4 shadow-sm">
+                            <i class="bi bi-play-fill me-1"></i> {% if is_pt %}Iniciar Modelagem Automática{% else %}Start Automated Modeling{% endif %}
                         </button>
                     </div>
                 </form>
@@ -135,22 +136,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-    const loopCheck = document.getElementById('enable_loop_check');
-    const loopOptions = document.getElementById('loop_options');
-
-    function toggleLoop() {
-        if (loopCheck && loopOptions) {
-            loopOptions.style.display = loopCheck.checked ? 'flex' : 'none';
-        }
-    }
-
-    if (loopCheck) {
-        loopCheck.addEventListener('change', toggleLoop);
-        toggleLoop();
-    }
-</script>
 {% endblock %}

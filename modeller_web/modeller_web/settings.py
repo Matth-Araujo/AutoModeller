@@ -68,6 +68,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'experiments.context_processors.site_language',
             ],
         },
     },
@@ -142,3 +143,38 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# Autenticação por e-mail
+AUTHENTICATION_BACKENDS = [
+    'experiments.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# Configuração do ambiente Modeller 10.7 (chave e caminhos das bibliotecas nativas C / Python)
+KEY_MODELLER = os.environ.get('KEY_MODELLER', 'MODELIRANJE')
+os.environ['KEY_MODELLER'] = KEY_MODELLER
+
+MODELLER_INSTALL = os.environ.get('MODINSTALL10v7', '/usr/lib/modeller10.7')
+MODELLER_LIB = os.path.join(MODELLER_INSTALL, 'lib', 'x86_64-intel8')
+MODELLER_PY33 = os.path.join(MODELLER_LIB, 'python3.3')
+MODELLER_MODLIB = os.path.join(MODELLER_INSTALL, 'modlib')
+
+# No Python 3, precisamos do _modeller.so de python3.3 e dos módulos de modlib
+for _p in [MODELLER_PY33, MODELLER_MODLIB]:
+    if os.path.isdir(_p) and _p not in sys.path:
+        sys.path.insert(0, _p)
+if MODELLER_LIB in sys.path:
+    sys.path.remove(MODELLER_LIB)
+
+_curr_pp = os.environ.get('PYTHONPATH', '')
+_pp_list = [p for p in [MODELLER_PY33, MODELLER_MODLIB] if os.path.isdir(p)]
+if _curr_pp:
+    _pp_list.extend([p for p in _curr_pp.split(':') if p and p != MODELLER_LIB])
+os.environ['PYTHONPATH'] = ':'.join(_pp_list)
+
+_curr_ld = os.environ.get('LD_LIBRARY_PATH', '')
+_ld_list = [p for p in [MODELLER_LIB] if os.path.isdir(p)]
+if _curr_ld:
+    _ld_list.extend([p for p in _curr_ld.split(':') if p and p != MODELLER_LIB])
+os.environ['LD_LIBRARY_PATH'] = ':'.join(_ld_list)
+

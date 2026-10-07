@@ -1,40 +1,66 @@
 {% extends 'base.html' %}
 
-{% block title %}Entrar - Modeller Web{% endblock %}
+{% block title %}
+    {% if is_pt %}Entrar - AutoModeller WEB{% else %}Sign In - AutoModeller WEB{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-5">
         <div class="card shadow-sm mt-4">
-            <div class="card-header py-3 text-center">
-                <h4 class="mb-0 fw-bold"><i class="bi bi-box-arrow-in-right text-primary me-2"></i>Entrar</h4>
+            <div class="card-header py-3 text-center bg-white">
+                <h4 class="mb-0 fw-bold">
+                    <i class="bi bi-box-arrow-in-right text-primary me-2"></i>
+                    {% if is_pt %}Entrar{% else %}Sign In{% endif %}
+                </h4>
             </div>
             <div class="card-body p-4">
                 {% if form.errors %}
                     <div class="alert alert-danger small py-2">
-                        Usuário ou senha incorretos. Por favor, tente novamente.
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        {% if is_pt %}
+                            E-mail ou senha incorretos. Por favor, verifique e tente novamente.
+                        {% else %}
+                            Invalid email or password. Please verify and try again.
+                        {% endif %}
                     </div>
                 {% endif %}
 
                 <form method="post" action="{% url 'login' %}">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Usuário</label>
-                        <input type="text" name="username" class="form-control" autofocus required>
+                        <label class="form-label fw-semibold">
+                            {% if is_pt %}E-mail{% else %}Email Address{% endif %}
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                            <input type="email" name="username" class="form-control" placeholder="user@example.com" autofocus required>
+                        </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Senha</label>
-                        <input type="password" name="password" class="form-control" required>
+                        <label class="form-label fw-semibold">
+                            {% if is_pt %}Senha{% else %}Password{% endif %}
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                            <input type="password" name="password" class="form-control" placeholder="{% if is_pt %}Sua senha{% else %}Your password{% endif %}" required>
+                        </div>
                     </div>
 
                     <div class="d-grid mb-3">
-                        <button type="submit" class="btn btn-primary btn-lg">Acessar</button>
+                        <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                            {% if is_pt %}Acessar{% else %}Sign In{% endif %}
+                        </button>
                     </div>
                 </form>
 
                 <div class="text-center small text-muted">
-                    Não tem uma conta? <a href="{% url 'register' %}" class="fw-semibold">Cadastre-se</a> ou continue no <a href="{% url 'experiment_create' %}">modo avulso</a>.
+                    {% if is_pt %}
+                        Não tem uma conta? <a href="{% url 'register' %}" class="fw-semibold">Cadastre-se</a> ou continue no <a href="{% url 'experiment_create' %}">modo avulso</a>.
+                    {% else %}
+                        Don't have an account? <a href="{% url 'register' %}" class="fw-semibold">Sign Up</a> or continue in <a href="{% url 'experiment_create' %}">guest mode</a>.
+                    {% endif %}
                 </div>
             </div>
         </div>

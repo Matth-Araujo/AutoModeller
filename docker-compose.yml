@@ -12,4 +12,5 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - SMOSH_MODELLER_PYTHON=/usr/local/bin/python3
+      - KEY_MODELLER=MODELIRANJE
     restart: unless-stopped

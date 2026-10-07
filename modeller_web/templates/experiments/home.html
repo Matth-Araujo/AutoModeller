@@ -1,130 +1,193 @@
 {% extends 'base.html' %}
 
-{% block title %}Modeller Web - Modelagem Molecular Automatizada com Smosh{% endblock %}
+{% block title %}
+    {% if is_pt %}AutoModeller WEB - Modelagem Molecular 3D Automatizada{% else %}AutoModeller WEB - Automated 3D Molecular Modeling{% endif %}
+{% endblock %}
 
 {% block content %}
+<!-- Hero Banner -->
 <div class="hero-banner shadow">
     <div class="row align-items-center">
         <div class="col-lg-8">
             <span class="badge bg-light text-primary px-3 py-2 rounded-pill fw-semibold mb-3">
-                <i class="bi bi-cpu me-1"></i> Smosh + Modeller 10.7 Automatizado
+                <i class="bi bi-cpu me-1"></i>
+                {% if is_pt %}
+                    Modelagem Molecular Automatizada com Modeller 10.7
+                {% else %}
+                    Automated 3D Molecular Modeling with Modeller 10.7
+                {% endif %}
             </span>
-            <h1 class="display-5 fw-bold mb-3">Modelagem Molecular 3D Descomplicada</h1>
+            <h1 class="display-5 fw-bold mb-3">
+                {% if is_pt %}
+                    Modelagem Molecular 3D Descomplicada
+                {% else %}
+                    Effortless 3D Molecular Modeling
+                {% endif %}
+            </h1>
             <p class="lead mb-4 opacity-90">
-                Execute toda a esteira do Modeller (busca de templates homólogos, alinhamento, construção dos modelos e perfil energético DOPE) de forma 100% automatizada.
+                {% if is_pt %}
+                    Execute toda a esteira do Modeller (busca de templates homólogos, alinhamento, construção dos modelos e perfil energético DOPE) de forma 100% automatizada no <strong>AutoModeller WEB</strong>.
+                {% else %}
+                    Run the entire Modeller pipeline (homologous template search, sequence alignment, 3D model building, and DOPE energy profiling) 100% automatically in <strong>AutoModeller WEB</strong>.
+                {% endif %}
             </p>
             <div class="d-flex flex-wrap gap-2">
-                <a href="{% url 'experiment_create' %}" class="btn btn-light btn-lg px-4 fw-semibold text-primary">
-                    <i class="bi bi-play-circle-fill me-2"></i> Iniciar Experimento Avulso
+                <a href="{% url 'experiment_create' %}" class="btn btn-light btn-lg px-4 fw-semibold text-primary shadow-sm">
+                    <i class="bi bi-play-circle-fill me-2"></i>
+                    {% if is_pt %}Iniciar Modelagem Automática{% else %}Start Automated Modeling{% endif %}
                 </a>
                 <a href="{% url 'experiment_create' %}?sample=1" class="btn btn-outline-light btn-lg px-4">
-                    <i class="bi bi-lightning-charge-fill me-2"></i> Carregar Exemplo (TvLDH)
+                    <i class="bi bi-lightning-charge-fill me-2"></i>
+                    {% if is_pt %}Carregar Exemplo (TvLDH){% else %}Load Example (TvLDH){% endif %}
                 </a>
                 {% if not user.is_authenticated %}
                 <a href="{% url 'register' %}" class="btn btn-dark btn-lg px-3">
-                    <i class="bi bi-person-plus me-1"></i> Criar Conta
+                    <i class="bi bi-person-plus me-1"></i>
+                    {% if is_pt %}Criar Conta{% else %}Create Account{% endif %}
                 </a>
                 {% endif %}
             </div>
         </div>
         <div class="col-lg-4 text-center d-none d-lg-block">
             <div class="p-4 bg-white bg-opacity-10 rounded-4 border border-white border-opacity-25">
-                <i class="bi bi-diagram-3-fill display-1 text-white opacity-75"></i>
-                <div class="mt-2 text-white fw-semibold">Visualizador 3D Integrado</div>
-                <div class="small text-white opacity-75">Gráficos de Perfil DOPE e Download de PDBs</div>
+                <i class="bi bi-badge-3d display-1 text-white opacity-75"></i>
+                <div class="mt-2 text-white fw-semibold">
+                    {% if is_pt %}Visualizador HTML5 3Dmol.js{% else %}HTML5 3Dmol.js Viewer{% endif %}
+                </div>
+                <div class="small text-white opacity-75">
+                    {% if is_pt %}Renderização WebGL de Alta Performance{% else %}High-performance WebGL Rendering{% endif %}
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Como Funciona a Linha de Montagem -->
-<div class="mb-5">
-    <div class="text-center mb-4">
-        <h3 class="fw-bold">Linha de Montagem Automatizada</h3>
-        <p class="text-muted">O smosh orquestra cada etapa do Modeller sem que você precise escrever scripts manualmente.</p>
+<!-- Seção: Estruturas 3D em Destaque (Estruturas Passando via 3Dmol.js) -->
+<div class="card shadow-sm mb-5 border-0">
+    <div class="card-header bg-white py-3 border-0">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h3 class="fw-bold mb-1 d-flex align-items-center gap-2">
+                    <i class="bi bi-badge-3d text-primary fs-3"></i>
+                    <span>{% if is_pt %}Estruturas 3D em Destaque{% else %}Featured 3D Structures{% endif %}</span>
+                </h3>
+                <p class="text-muted small mb-0">
+                    {% if is_pt %}
+                        Galeria dinâmica de estruturas macromoleculares renderizadas diretamente no navegador via <strong>3Dmol.js (HTML5 / WebGL)</strong>.
+                    {% else %}
+                        Dynamic gallery of macromolecular structures rendered directly in your browser using <strong>3Dmol.js (HTML5 / WebGL)</strong>.
+                    {% endif %}
+                </p>
+            </div>
+            <!-- Controles do Carrossel de Estruturas -->
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-prev-struct" title="{% if is_pt %}Estrutura Anterior{% else %}Previous Structure{% endif %}">
+                    <i class="bi bi-chevron-left"></i> {% if is_pt %}Anterior{% else %}Previous{% endif %}
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btn-toggle-auto" title="{% if is_pt %}Pausar / Retomar transição automática{% else %}Pause / Resume auto transition{% endif %}">
+                    <i class="bi bi-pause-fill" id="icon-auto"></i> <span id="label-auto">{% if is_pt %}Pausar{% else %}Pause{% endif %}</span>
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-next-struct" title="{% if is_pt %}Próxima Estrutura{% else %}Next Structure{% endif %}">
+                    {% if is_pt %}Próxima{% else %}Next{% endif %} <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-md-4">
-            <div class="card h-100 p-3">
-                <div class="card-body">
-                    <div class="step-icon-box bg-primary-subtle text-primary">
-                        <i class="bi bi-file-earmark-code"></i>
+    <div class="card-body p-4 pt-1">
+        <div class="row g-4 align-items-stretch">
+            <!-- Visualizador Molecular 3D (3Dmol) -->
+            <div class="col-lg-7">
+                <div class="position-relative border rounded-3 overflow-hidden shadow-sm bg-white" style="height: 480px;">
+                    <!-- Toolbar Superior do Visualizador -->
+                    <div class="position-absolute top-0 start-0 end-0 p-2 d-flex flex-wrap justify-content-between align-items-center bg-white bg-opacity-90 border-bottom" style="z-index: 10;">
+                        <div class="btn-group btn-group-sm" role="group" id="home-style-buttons">
+                            <button type="button" class="btn btn-outline-secondary active" data-style="cartoon" onclick="setHomeStyle('cartoon', this)">Cartoon</button>
+                            <button type="button" class="btn btn-outline-secondary" data-style="stick" onclick="setHomeStyle('stick', this)">Sticks</button>
+                            <button type="button" class="btn btn-outline-secondary" data-style="surface" onclick="setHomeStyle('surface', this)">{% if is_pt %}Superfície{% else %}Surface{% endif %}</button>
+                            <button type="button" class="btn btn-outline-secondary" data-style="sphere" onclick="setHomeStyle('sphere', this)">{% if is_pt %}Esferas{% else %}Spheres{% endif %}</button>
+                        </div>
+                        <div class="btn-group btn-group-sm d-none d-sm-inline-flex" role="group" id="home-color-buttons">
+                            <button type="button" class="btn btn-outline-secondary active" data-color="spectrum" onclick="setHomeColor('spectrum', this)">{% if is_pt %}Espectro{% else %}Spectrum{% endif %}</button>
+                            <button type="button" class="btn btn-outline-secondary" data-color="ssPyMOL" onclick="setHomeColor('ssPyMOL', this)">{% if is_pt %}Estrutura 2ª{% else %}2nd Structure{% endif %}</button>
+                            <button type="button" class="btn btn-outline-secondary" data-color="chain" onclick="setHomeColor('chain', this)">{% if is_pt %}Cadeia{% else %}Chain{% endif %}</button>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-dark active" id="btn-home-spin" onclick="toggleHomeSpin()">
+                                <i class="bi bi-arrow-repeat"></i> {% if is_pt %}Girar{% else %}Spin{% endif %}
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="resetHomeView()" title="{% if is_pt %}Centrar estrutura{% else %}Center structure{% endif %}">
+                                <i class="bi bi-arrows-fullscreen"></i>
+                            </button>
+                        </div>
                     </div>
-                    <h5 class="fw-bold">1. Sequência Alvo</h5>
-                    <p class="text-muted small">
-                        Recebe a sequência da sua proteína em formato PIR ou FASTA puro via upload de arquivo ou colando o texto diretamente.
-                    </p>
+
+                    <!-- Canvas do 3Dmol -->
+                    <div id="home-mol-viewer" style="height: 100%; width: 100%; position: relative;"></div>
+
+                    <!-- Indicador de Carregamento -->
+                    <div id="home-viewer-loading" class="position-absolute top-50 start-50 translate-middle text-muted small bg-white p-2 rounded shadow-sm d-none" style="z-index: 5;">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                        {% if is_pt %}Carregando estrutura 3D...{% else %}Loading 3D structure...{% endif %}
+                    </div>
+                </div>
+                <div class="form-text small mt-1 text-muted text-center">
+                    <i class="bi bi-mouse me-1"></i>
+                    {% if is_pt %}
+                        Arraste para rotacionar &bull; Botão direito para mover &bull; Scroll para zoom
+                    {% else %}
+                        Drag to rotate &bull; Right-click to pan &bull; Scroll to zoom
+                    {% endif %}
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-4">
-            <div class="card h-100 p-3">
-                <div class="card-body">
-                    <div class="step-icon-box bg-success-subtle text-success">
-                        <i class="bi bi-search"></i>
+            <!-- Painel Informativo da Estrutura Atual e Seletor -->
+            <div class="col-lg-5 d-flex flex-column justify-content-between">
+                <!-- Informações Detalhadas da Estrutura Ativa -->
+                <div class="card border h-100 p-3 mb-3 bg-light bg-opacity-50">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-primary px-3 py-1 fs-7" id="struct-badge">Homology Model</span>
+                        <span class="badge bg-light text-dark border font-monospace" id="struct-id">TvLDH</span>
                     </div>
-                    <h5 class="fw-bold">2. Busca de Moldes</h5>
-                    <p class="text-muted small">
-                        O <code>FindTemplatesStep</code> varre o banco de estruturas <code>pdb_95</code>, calcula perfis de similaridade e seleciona o melhor candidato.
+                    <h4 class="fw-bold mb-1" id="struct-name">Lactate Dehydrogenase</h4>
+                    <div class="text-muted fst-italic small mb-3" id="struct-organism">Trichomonas vaginalis</div>
+                    
+                    <p class="small text-muted flex-grow-1" id="struct-desc">
+                        Metabolic enzyme comparative model built by AutoModeller from template 1bdm. Optimized with spatial restraint satisfaction and DOPE energy assessment.
                     </p>
+
+                    <div class="p-2 bg-white rounded border mb-3 small">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <span class="text-muted d-block">{% if is_pt %}Tipo de Estrutura:{% else %}Structure Type:{% endif %}</span>
+                                <strong id="struct-type">AutoModeller 3D Model</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted d-block">{% if is_pt %}Resolução / DOPE:{% else %}Resolution / DOPE:{% endif %}</span>
+                                <strong id="struct-metric" class="text-primary">-38421.5 DOPE</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'experiment_create' %}?sample=1" class="btn btn-primary btn-sm flex-grow-1">
+                            <i class="bi bi-play-circle-fill me-1"></i>
+                            {% if is_pt %}Modelar Esta Estrutura{% else %}Model This Structure{% endif %}
+                        </a>
+                        <a id="btn-download-pdb" href="/static/pdb/TvLDH.pdb" download class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-download me-1"></i> PDB
+                        </a>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="col-md-4">
-            <div class="card h-100 p-3">
-                <div class="card-body">
-                    <div class="step-icon-box bg-info-subtle text-info">
-                        <i class="bi bi-filter-square"></i>
+                <!-- Seletor em Miniaturas / Estruturas que Estão Passando -->
+                <div>
+                    <label class="small fw-semibold text-muted mb-2">
+                        {% if is_pt %}Estruturas em Exibição:{% else %}Structures on Display:{% endif %}
+                    </label>
+                    <div class="row g-2" id="struct-thumbnails">
+                        <!-- Gerado dinamicamente pelo JavaScript -->
                     </div>
-                    <h5 class="fw-bold">3. Limpeza & Alinhamento</h5>
-                    <p class="text-muted small">
-                        Baixa o PDB via RCSB, remove cadeias excedentes (<code>PDBFile</code>), extrai a sequência e executa o alinhamento 2D (<code>AlignStep</code>).
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card h-100 p-3">
-                <div class="card-body">
-                    <div class="step-icon-box bg-warning-subtle text-warning">
-                        <i class="bi bi-boxes"></i>
-                    </div>
-                    <h5 class="fw-bold">4. Modelagem 3D</h5>
-                    <p class="text-muted small">
-                        O <code>BuildModelStep</code> instrui o Modeller Automodel a construir múltiplos modelos 3D candidatos (por padrão 5 variações).
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card h-100 p-3">
-                <div class="card-body">
-                    <div class="step-icon-box bg-danger-subtle text-danger">
-                        <i class="bi bi-graph-up"></i>
-                    </div>
-                    <h5 class="fw-bold">5. Avaliação Energética</h5>
-                    <p class="text-muted small">
-                        Gera perfis energéticos DOPE comparando o molde original e os modelos produzidos com geração automática do gráfico em alta resolução.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card h-100 p-3">
-                <div class="card-body">
-                    <div class="step-icon-box bg-secondary-subtle text-secondary">
-                        <i class="bi bi-arrow-repeat"></i>
-                    </div>
-                    <h5 class="fw-bold">6. Refinamento de Loop</h5>
-                    <p class="text-muted small">
-                        (Opcional) Refinamento fino por dinâmica molecular em regiões flexíveis ou inserções específicas sem precisar remontar a proteína inteira.
-                    </p>
                 </div>
             </div>
         </div>
@@ -133,23 +196,28 @@
 
 <!-- Experimentos Recentes -->
 {% if recent_experiments %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-clock-history me-2"></i>Seus Experimentos Recentes</span>
-        <a href="{% url 'experiment_list' %}" class="btn btn-outline-primary btn-sm">Ver Todos</a>
+<div class="card mb-4 shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center bg-white py-3">
+        <span class="fw-bold">
+            <i class="bi bi-clock-history text-primary me-2"></i>
+            {% if is_pt %}Seus Experimentos Recentes{% else %}Your Recent Experiments{% endif %}
+        </span>
+        <a href="{% url 'experiment_list' %}" class="btn btn-outline-primary btn-sm">
+            {% if is_pt %}Ver Histórico Completo{% else %}View Full History{% endif %}
+        </a>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Título</th>
-                        <th>Proteína</th>
-                        <th>Status</th>
-                        <th>Melhor Modelo</th>
+                        <th>{% if is_pt %}Título{% else %}Title{% endif %}</th>
+                        <th>{% if is_pt %}Proteína{% else %}Protein{% endif %}</th>
+                        <th>{% if is_pt %}Status{% else %}Status{% endif %}</th>
+                        <th>{% if is_pt %}Melhor Modelo{% else %}Best Model{% endif %}</th>
                         <th>DOPE Score</th>
-                        <th>Criado em</th>
-                        <th class="text-end">Ações</th>
+                        <th>{% if is_pt %}Criado em{% else %}Created At{% endif %}</th>
+                        <th class="text-end">{% if is_pt %}Ações{% else %}Actions{% endif %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -163,19 +231,19 @@
                         <td><code>{{ exp.sequence_name }}</code></td>
                         <td>
                             {% if exp.status == 'COMPLETED' %}
-                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Concluído</span>
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>{% if is_pt %}Concluído{% else %}Completed{% endif %}</span>
                             {% elif exp.status == 'RUNNING' %}
-                                <span class="badge bg-primary"><i class="bi bi-arrow-repeat me-1"></i>Executando</span>
+                                <span class="badge bg-primary"><i class="bi bi-arrow-repeat me-1"></i>{% if is_pt %}Executando{% else %}Running{% endif %}</span>
                             {% elif exp.status == 'FAILED' %}
-                                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Falhou</span>
+                                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>{% if is_pt %}Falhou{% else %}Failed{% endif %}</span>
                             {% else %}
-                                <span class="badge bg-secondary">Pendente</span>
+                                <span class="badge bg-secondary">{% if is_pt %}Pendente{% else %}Pending{% endif %}</span>
                             {% endif %}
                         </td>
                         <td>{{ exp.best_model_name|default:"-" }}</td>
                         <td>
                             {% if exp.best_dope_score %}
-                                <span class="fw-bold">{{ exp.best_dope_score|floatformat:2 }}</span>
+                                <span class="fw-bold text-primary">{{ exp.best_dope_score|floatformat:2 }}</span>
                             {% else %}
                                 -
                             {% endif %}
@@ -183,7 +251,7 @@
                         <td class="text-muted small">{{ exp.created_at|date:"d/m/Y H:i" }}</td>
                         <td class="text-end">
                             <a href="{% url 'experiment_detail' uuid=exp.uuid %}" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-eye"></i> Detalhes
+                                <i class="bi bi-eye"></i> {% if is_pt %}Detalhes{% else %}Details{% endif %}
                             </a>
                         </td>
                     </tr>
@@ -198,30 +266,330 @@
 <!-- Diferencial Modo Avulso vs Usuário -->
 <div class="row g-4 mt-2">
     <div class="col-md-6">
-        <div class="card h-100 border-primary">
+        <div class="card h-100 border-primary shadow-sm">
             <div class="card-body">
-                <h5 class="card-title text-primary"><i class="bi bi-incognito me-2"></i>Modo Avulso (Convidado)</h5>
+                <h5 class="card-title text-primary">
+                    <i class="bi bi-incognito me-2"></i>
+                    {% if is_pt %}Modo Avulso (Convidado){% else %}Guest Mode{% endif %}
+                </h5>
                 <p class="card-text text-muted">
-                    Ideal para testes imediatos sem necessidade de criar conta ou memorizar senhas. O experimento fica vinculado à sua sessão no navegador e pode ser acessado pelo link exclusivo.
+                    {% if is_pt %}
+                        Ideal para testes imediatos sem necessidade de criar conta ou memorizar senhas. O experimento fica vinculado à sua sessão no navegador e pode ser acessado pelo link exclusivo.
+                    {% else %}
+                        Ideal for immediate testing without signing up. The experiment is linked to your browser session and can be accessed anytime through its unique URL.
+                    {% endif %}
                 </p>
-                <a href="{% url 'experiment_create' %}" class="btn btn-outline-primary btn-sm">Criar Experimento Avulso</a>
+                <a href="{% url 'experiment_create' %}" class="btn btn-outline-primary btn-sm">
+                    {% if is_pt %}Criar Experimento Avulso{% else %}Create Guest Experiment{% endif %}
+                </a>
             </div>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card h-100 border-success">
+        <div class="card h-100 border-success shadow-sm">
             <div class="card-body">
-                <h5 class="card-title text-success"><i class="bi bi-person-check-fill me-2"></i>Conta de Pesquisador</h5>
+                <h5 class="card-title text-success">
+                    <i class="bi bi-person-check-fill me-2"></i>
+                    {% if is_pt %}Conta de Pesquisador{% else %}Researcher Account{% endif %}
+                </h5>
                 <p class="card-text text-muted">
-                    Salve e centralize todo o seu histórico de modelagens, acesse de qualquer dispositivo e reivindique experimentos avulsos criados anteriormente com apenas um clique.
+                    {% if is_pt %}
+                        Salve e centralize todo o seu histórico de modelagens, acesse de qualquer dispositivo e reivindique experimentos avulsos criados anteriormente com apenas um clique.
+                    {% else %}
+                        Save and centralize your entire modeling history, access from any device, and claim guest experiments anytime with a single click.
+                    {% endif %}
                 </p>
                 {% if not user.is_authenticated %}
-                <a href="{% url 'register' %}" class="btn btn-outline-success btn-sm">Criar Conta Gratuita</a>
+                <a href="{% url 'register' %}" class="btn btn-outline-success btn-sm">
+                    {% if is_pt %}Criar Conta Gratuita{% else %}Create Free Account{% endif %}
+                </a>
                 {% else %}
-                <a href="{% url 'experiment_list' %}" class="btn btn-outline-success btn-sm">Acessar Meu Histórico</a>
+                <a href="{% url 'experiment_list' %}" class="btn btn-outline-success btn-sm">
+                    {% if is_pt %}Acessar Meu Histórico{% else %}Access My History{% endif %}
+                </a>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const isPt = {{ is_pt|yesno:"true,false" }};
+
+    // Catálogo Bilíngue de Estruturas Moleculares 3D em Destaque
+    const structures = [
+        {
+            id: "TvLDH",
+            name: isPt ? "Lactato Desidrogenase" : "Lactate Dehydrogenase",
+            organism: "Trichomonas vaginalis",
+            badge: isPt ? "Modelo Homólogo" : "Homology Model",
+            badgeClass: "bg-primary",
+            desc: isPt 
+                ? "Enzima metabólica modelada automaticamente por homologia comparativa a partir do molde cristalográfico 1bdm. Otimizada via restrições espaciais e DOPE no AutoModeller WEB."
+                : "Metabolic enzyme comparative model built automatically by AutoModeller WEB from template 1bdm. Optimized with spatial restraint satisfaction and DOPE energy assessment.",
+            type: isPt ? "Modelo AutoModeller 3D" : "AutoModeller 3D Model",
+            metric: "-38421.5 DOPE (Optimal)",
+            pdbUrl: "/static/pdb/TvLDH.pdb"
+        },
+        {
+            id: "1bdm",
+            name: isPt ? "Malato Desidrogenase" : "Malate Dehydrogenase",
+            organism: "Thermus flavus",
+            badge: isPt ? "Molde Cristalográfico" : "Crystallographic Template",
+            badgeClass: "bg-success",
+            desc: isPt
+                ? "Estrutura cristalográfica de referência de alta resolução (1.80 Å) utilizada como template homólogo para a modelagem da lactato desidrogenase."
+                : "High-resolution (1.80 Å) reference crystallographic structure used as homologous template for modeling lactate dehydrogenase.",
+            type: isPt ? "Cristalografia de Raio-X" : "X-Ray Crystallography",
+            metric: isPt ? "Resolução 1.80 Å" : "1.80 Å Resolution",
+            pdbUrl: "/static/pdb/1bdm.pdb"
+        },
+        {
+            id: "1crn",
+            name: "Crambin",
+            organism: "Crambe hispanica",
+            badge: isPt ? "Proteína Hidrofóbica" : "Hydrophobic Plant Protein",
+            badgeClass: "bg-info text-dark",
+            desc: isPt
+                ? "Pequena proteína vegetal rica em pontes dissulfeto e altamente estável. Uma das estruturas canônicas mais refinadas em biologia estrutural (0.83 Å)."
+                : "Small plant protein rich in disulfide bonds and highly stable. One of the most refined canonical structures in structural biology (0.83 Å).",
+            type: isPt ? "Ultra-Alta Resolução" : "Ultra-High Resolution",
+            metric: isPt ? "Resolução 0.83 Å" : "0.83 Å Resolution",
+            pdbUrl: "/static/pdb/1crn.pdb"
+        },
+        {
+            id: "1ubq",
+            name: isPt ? "Ubiquitina Humana" : "Human Ubiquitin",
+            organism: "Homo sapiens",
+            badge: isPt ? "Sinalização Celular" : "Cellular Signaling",
+            badgeClass: "bg-warning text-dark",
+            desc: isPt
+                ? "Proteína regulatória ubíqua fundamental na degradação proteassômica e regulação celular. Possui dobra globular mista extremamente conservada."
+                : "Ubiquitous regulatory protein critical in proteasomal degradation and cell regulation. Exhibits an extremely conserved mixed globular fold.",
+            type: isPt ? "Regulação Eucariótica" : "Eukaryotic Regulation",
+            metric: isPt ? "Resolução 1.80 Å" : "1.80 Å Resolution",
+            pdbUrl: "/static/pdb/1ubq.pdb"
+        }
+    ];
+
+    let currentIdx = 0;
+    let homeViewer = null;
+    let isHomeSpinning = true;
+    let homeStyle = 'cartoon';
+    let homeColor = 'spectrum';
+    let autoAdvanceInterval = null;
+    let isAutoPlaying = true;
+
+    function initHomeViewer() {
+        const element = document.getElementById('home-mol-viewer');
+        if (!element) return;
+
+        homeViewer = $3Dmol.createViewer(element, { backgroundColor: 'white' });
+        renderThumbnails();
+        loadStructure(0);
+        startAutoAdvance();
+    }
+
+    function renderThumbnails() {
+        const container = document.getElementById('struct-thumbnails');
+        if (!container) return;
+
+        container.innerHTML = '';
+        structures.forEach((st, idx) => {
+            const col = document.createElement('div');
+            col.className = 'col-6';
+            col.innerHTML = `
+                <div class="card p-2 border struct-card cursor-pointer ${idx === currentIdx ? 'border-primary bg-primary-subtle text-primary fw-semibold' : 'bg-white'}" 
+                     style="cursor: pointer; transition: all 0.2s;" 
+                     onclick="selectStructure(${idx})">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="font-monospace small">${st.id}</span>
+                        <span class="badge ${st.badgeClass}" style="font-size: 0.65rem;">${st.badge}</span>
+                    </div>
+                    <div class="text-truncate small mt-1 text-dark">${st.name}</div>
+                </div>
+            `;
+            container.appendChild(col);
+        });
+    }
+
+    function loadStructure(idx) {
+        if (!homeViewer || idx < 0 || idx >= structures.length) return;
+        currentIdx = idx;
+        const st = structures[idx];
+
+        document.getElementById('struct-id').textContent = st.id;
+        document.getElementById('struct-name').textContent = st.name;
+        document.getElementById('struct-organism').textContent = st.organism;
+        document.getElementById('struct-desc').textContent = st.desc;
+        document.getElementById('struct-type').textContent = st.type;
+        document.getElementById('struct-metric').textContent = st.metric;
+        
+        const badgeElem = document.getElementById('struct-badge');
+        badgeElem.textContent = st.badge;
+        badgeElem.className = `badge ${st.badgeClass} px-3 py-1 fs-7`;
+
+        const downloadBtn = document.getElementById('btn-download-pdb');
+        if (downloadBtn) {
+            downloadBtn.href = st.pdbUrl;
+            downloadBtn.setAttribute('download', `${st.id}.pdb`);
+        }
+
+        renderThumbnails();
+
+        const loading = document.getElementById('home-viewer-loading');
+        if (loading) loading.classList.remove('d-none');
+
+        fetch(st.pdbUrl)
+            .then(res => {
+                if (!res.ok) throw new Error("PDB local not found");
+                return res.text();
+            })
+            .then(pdbData => {
+                homeViewer.clear();
+                homeViewer.addModel(pdbData, "pdb");
+                applyHomeStyle();
+                homeViewer.zoomTo();
+                homeViewer.render();
+                homeViewer.spin(isHomeSpinning);
+                if (loading) loading.classList.add('d-none');
+            })
+            .catch(err => {
+                console.warn("RCSB fallback for:", st.id, err);
+                homeViewer.clear();
+                $3Dmol.download(`pdb:${st.id}`, homeViewer, {}, function() {
+                    applyHomeStyle();
+                    homeViewer.zoomTo();
+                    homeViewer.render();
+                    homeViewer.spin(isHomeSpinning);
+                    if (loading) loading.classList.add('d-none');
+                });
+            });
+    }
+
+    function applyHomeStyle() {
+        if (!homeViewer) return;
+        homeViewer.setStyle({}, {});
+
+        let styleObj = {};
+        if (homeColor === 'spectrum') {
+            styleObj.color = 'spectrum';
+        } else if (homeColor === 'ssPyMOL') {
+            styleObj.colorscheme = 'ssPyMOL';
+        } else if (homeColor === 'chain') {
+            styleObj.color = 'chain';
+        }
+
+        if (homeStyle === 'cartoon') {
+            homeViewer.setStyle({}, { cartoon: styleObj });
+        } else if (homeStyle === 'stick') {
+            homeViewer.setStyle({}, { stick: styleObj });
+        } else if (homeStyle === 'sphere') {
+            homeViewer.setStyle({}, { sphere: styleObj });
+        } else if (homeStyle === 'surface') {
+            homeViewer.setStyle({}, { cartoon: styleObj });
+            homeViewer.addSurface($3Dmol.SurfaceType.VDW, { opacity: 0.75, color: 'white' });
+        }
+        homeViewer.render();
+    }
+
+    function setHomeStyle(style, btn) {
+        homeStyle = style;
+        const styleBtns = document.querySelectorAll('#home-style-buttons button');
+        styleBtns.forEach(b => {
+            if (b === btn || b.getAttribute('data-style') === style) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+        applyHomeStyle();
+    }
+
+    function setHomeColor(color, btn) {
+        homeColor = color;
+        const colorBtns = document.querySelectorAll('#home-color-buttons button');
+        colorBtns.forEach(b => {
+            if (b === btn || b.getAttribute('data-color') === color) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+        applyHomeStyle();
+    }
+
+    function toggleHomeSpin() {
+        if (!homeViewer) return;
+        isHomeSpinning = !isHomeSpinning;
+        homeViewer.spin(isHomeSpinning);
+        const spinBtn = document.getElementById('btn-home-spin');
+        if (spinBtn) {
+            spinBtn.classList.toggle('active', isHomeSpinning);
+        }
+    }
+
+    function resetHomeView() {
+        if (!homeViewer) return;
+        homeViewer.zoomTo();
+        homeViewer.render();
+    }
+
+    function selectStructure(idx) {
+        loadStructure(idx);
+    }
+
+    function nextStructure() {
+        let nextIdx = (currentIdx + 1) % structures.length;
+        loadStructure(nextIdx);
+    }
+
+    function prevStructure() {
+        let prevIdx = (currentIdx - 1 + structures.length) % structures.length;
+        loadStructure(prevIdx);
+    }
+
+    function startAutoAdvance() {
+        stopAutoAdvance();
+        autoAdvanceInterval = setInterval(() => {
+            if (isAutoPlaying) {
+                nextStructure();
+            }
+        }, 7000);
+    }
+
+    function stopAutoAdvance() {
+        if (autoAdvanceInterval) {
+            clearInterval(autoAdvanceInterval);
+            autoAdvanceInterval = null;
+        }
+    }
+
+    function toggleAutoPlay() {
+        isAutoPlaying = !isAutoPlaying;
+        const icon = document.getElementById('icon-auto');
+        const label = document.getElementById('label-auto');
+        if (isAutoPlaying) {
+            icon.className = 'bi bi-pause-fill';
+            label.textContent = isPt ? 'Pausar' : 'Pause';
+        } else {
+            icon.className = 'bi bi-play-fill';
+            label.textContent = isPt ? 'Passar Automático' : 'Auto Play';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initHomeViewer();
+
+        const btnNext = document.getElementById('btn-next-struct');
+        const btnPrev = document.getElementById('btn-prev-struct');
+        const btnToggle = document.getElementById('btn-toggle-auto');
+
+        if (btnNext) btnNext.addEventListener('click', nextStructure);
+        if (btnPrev) btnPrev.addEventListener('click', prevStructure);
+        if (btnToggle) btnToggle.addEventListener('click', toggleAutoPlay);
+    });
+</script>
 {% endblock %}

@@ -17,8 +17,16 @@ class TemplateProfile(object):
 		return list_of_sequences
 
 	def getBetterProfile(self):
-		better_profile = self.list_of_sequences[0]
-		for eachProfile in self.list_of_sequences:
-			if eachProfile.identity() > better_profile.identity():
-				better_profile = eachProfile
+		structural_profiles = [p for p in self.list_of_sequences if p.type() == 'X']
+		if not structural_profiles:
+			structural_profiles = self.list_of_sequences
+		if not structural_profiles:
+			return None
+		better_profile = structural_profiles[0]
+		for eachProfile in structural_profiles:
+			try:
+				if float(eachProfile.identity() or 0) > float(better_profile.identity() or 0):
+					better_profile = eachProfile
+			except (ValueError, TypeError):
+				pass
 		return better_profile

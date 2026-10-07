@@ -11,4 +11,5 @@ urlpatterns = [
     path('experiments/<uuid:uuid>/retry/', views.experiment_retry, name='experiment_retry'),
     path('experiments/claim/', views.experiment_claim, name='experiment_claim'),
     path('register/', views.register_view, name='register'),
+    path('set-language/', views.set_language_custom, name='set_language_custom'),
 ]

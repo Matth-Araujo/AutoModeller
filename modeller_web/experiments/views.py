@@ -13,29 +13,22 @@ from .services import start_experiment_async, create_experiment_zip
 
 SAMPLE_TVLDH_PIR = """>P1;TvLDH
 sequence:TvLDH:::::::0.00: 0.00
-MSEAAHVLITGAAGQIGYILSHWIASGELYGDRQVYLHLLDIPPAMNRLTALTGVENVDLFFSAVRGKVFGSKEDLLDY
-IRVVKPGAEGRLDAAQEKAIENGITVAKVDVVDSTGVTGSVKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAK
-DTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNR
-GVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVG
-NSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDV
-LDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTG
-AFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERL
-QRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTD
-AKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRD
-NRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGV
-VGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLK
-DVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVI
-CTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLD
-ERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLF
-VTDAKDTLEKWVRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKW
-VRDNRGVDVAKVGVVGNSSVLETLKDVLDGVDVVICTGAFNVPRLDERLQRLNGKLFVTDAKDTLEKWVRDNRGVDVAK
-*"""
+MSEAAHVLITGAAGQIGYILSHWIASGELYGDRQVYLHLLDIPPAMNRLTALTMELEDCAFPHLAGFVATTDPKA
+AFKDIDCAFLVASMPLKPGQVRADLISSNSVIFKNTGEYLSKWAKPSVKVLVIGNPDNTNCEIAMLHAKNLKPEN
+FSSLSMLDQNRAYYEVASKLGVDVKDVHDIIVWGNHGESMVADLTQATFTKEGKTQKVVDVLDHDYVFDTFFKKI
+GHRAWDILEHRGFTSAASPTKAAIQHMKAWLFGTAPGEVLSMGIPVPEGNPYGIKPGVVFSFPCNVDKEGKIHVV
+EGFKVNDWLREKLDFTEKDLFHEKEIALNHLAQGG*"""
 
 
 def _ensure_session_key(request):
     if not request.session.session_key:
         request.session.save()
     return request.session.session_key
+
+
+def _is_pt(request):
+    lang = request.session.get('site_lang') or request.COOKIES.get('site_lang', 'en')
+    return lang == 'pt'
 
 
 def home(request):
@@ -69,8 +62,12 @@ def experiment_create(request):
             initial_data['sequence_text'] = SAMPLE_TVLDH_PIR
         initial_data['sequence_name'] = 'TvLDH'
         initial_data['sequence_type'] = 'PIR'
-        initial_data['title'] = 'Experimento Exemplo: TvLDH (Lactato Desidrogenase)'
-        initial_data['description'] = 'Demonstração automatizada completa utilizando os dados modelo de TvLDH da biblioteca smosh.'
+        if _is_pt(request):
+            initial_data['title'] = 'Experimento Exemplo: TvLDH (Lactato Desidrogenase)'
+            initial_data['description'] = 'Demonstração automatizada completa de modelagem 3D comparativa utilizando TvLDH.'
+        else:
+            initial_data['title'] = 'TvLDH Example Experiment (Lactate Dehydrogenase)'
+            initial_data['description'] = 'Full automated 3D comparative modeling demonstration using TvLDH.'
 
     if request.method == 'POST':
         form = ExperimentCreateForm(request.POST, request.FILES)
@@ -81,8 +78,10 @@ def experiment_create(request):
             else:
                 experiment.session_key = session_key
 
+            experiment.sequence_name = form.cleaned_data.get('sequence_name', 'TargetProt')
+            experiment.title = form.cleaned_data.get('title') or f"Modeling {experiment.sequence_name}"
             experiment.status = 'PENDING'
-            experiment.current_step = 'Enfileirado'
+            experiment.current_step = 'Enfileirado' if _is_pt(request) else 'Queued'
             experiment.save()
 
             # Guardar lista de uuids na sessão para o convidado
@@ -93,7 +92,10 @@ def experiment_create(request):
             # Disparar pipeline assíncrona
             start_experiment_async(experiment.id)
 
-            messages.success(request, f"Experimento '{experiment.title}' iniciado com sucesso!")
+            if _is_pt(request):
+                messages.success(request, f"Experimento '{experiment.title}' iniciado com sucesso!")
+            else:
+                messages.success(request, f"Experiment '{experiment.title}' started successfully!")
             return redirect('experiment_detail', uuid=experiment.uuid)
     else:
         form = ExperimentCreateForm(initial=initial_data)
@@ -186,7 +188,10 @@ def experiment_claim(request):
     Experiment.objects.filter(session_key=session_key, user__isnull=True).update(user=request.user)
 
     request.session['guest_experiment_uuids'] = []
-    messages.success(request, f"{claimed} experimento(s) avulso(s) foram vinculados à sua conta com sucesso!")
+    if _is_pt(request):
+        messages.success(request, f"{claimed} experimento(s) avulso(s) foram vinculados à sua conta com sucesso!")
+    else:
+        messages.success(request, f"{claimed} guest experiment(s) were successfully linked to your account!")
     return redirect('experiment_list')
 
 
@@ -195,14 +200,17 @@ def experiment_retry(request, uuid):
     """Reinicia a execução de um experimento."""
     experiment = get_object_or_404(Experiment, uuid=uuid)
     experiment.status = 'PENDING'
-    experiment.current_step = 'Reiniciando'
+    experiment.current_step = 'Reiniciando' if _is_pt(request) else 'Restarting'
     experiment.progress_percent = 0
     experiment.error_message = ''
-    experiment.log_output += f"\n--- REINICIANDO EXPERIMENTO EM {settings.TIME_ZONE} ---\n"
+    experiment.log_output += f"\n--- RESTARTING EXPERIMENT AT {settings.TIME_ZONE} ---\n"
     experiment.save()
 
     start_experiment_async(experiment.id)
-    messages.info(request, "O experimento foi reiniciado.")
+    if _is_pt(request):
+        messages.info(request, "O experimento foi reiniciado.")
+    else:
+        messages.info(request, "Experiment has been restarted.")
     return redirect('experiment_detail', uuid=experiment.uuid)
 
 
@@ -241,9 +249,26 @@ def register_view(request):
                 Experiment.objects.filter(session_key=session_key, user__isnull=True).update(user=user)
             request.session['guest_experiment_uuids'] = []
 
-            messages.success(request, f"Bem-vindo(a), {user.username}! Sua conta foi criada com sucesso.")
+            if _is_pt(request):
+                messages.success(request, f"Bem-vindo(a), {user.first_name or user.email}! Sua conta foi criada com sucesso.")
+            else:
+                messages.success(request, f"Welcome, {user.first_name or user.email}! Your account was created successfully.")
             return redirect('experiment_list')
     else:
         form = RegisterForm()
 
     return render(request, 'registration/register.html', {'form': form})
+
+
+def set_language_custom(request):
+    """Alterna o idioma entre inglês (en) e português (pt)."""
+    lang = request.GET.get('lang', 'en')
+    if lang not in ('en', 'pt'):
+        lang = 'en'
+    request.session['site_lang'] = lang
+    next_url = request.GET.get('next') or request.META.get('HTTP_REFERER') or '/'
+    if not next_url.startswith('/'):
+        next_url = '/'
+    response = redirect(next_url)
+    response.set_cookie('site_lang', lang, max_age=365*24*60*60)
+    return response

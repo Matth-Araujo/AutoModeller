@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ experiment.title }} - Detalhes do Experimento{% endblock %}
+{% block title %}
+    {{ experiment.title }} - {% if is_pt %}Detalhes{% else %}Experiment Details{% endif %} - AutoModeller WEB
+{% endblock %}
 
 {% block content %}
 <div class="row g-4">
@@ -21,21 +23,30 @@
                                     {% elif experiment.status == 'RUNNING' %}bi-arrow-repeat
                                     {% elif experiment.status == 'FAILED' %}bi-x-circle-fill
                                     {% else %}bi-hourglass-split{% endif %} me-1"></i>
-                                <span id="status-text">{{ experiment.get_status_display }}</span>
+                                <span id="status-text">
+                                    {% if is_pt %}
+                                        {{ experiment.get_status_display }}
+                                    {% else %}
+                                        {% if experiment.status == 'COMPLETED' %}Completed
+                                        {% elif experiment.status == 'RUNNING' %}Running
+                                        {% elif experiment.status == 'FAILED' %}Failed
+                                        {% else %}Pending{% endif %}
+                                    {% endif %}
+                                </span>
                             </span>
                             <span class="badge bg-light text-dark border">
-                                Código: <strong>{{ experiment.sequence_name }}</strong>
+                                {% if is_pt %}Código:{% else %}Code:{% endif %} <strong>{{ experiment.sequence_name }}</strong>
                             </span>
                             <span class="badge bg-light text-dark border">
-                                Formato: {{ experiment.sequence_type }}
+                                {% if is_pt %}Formato:{% else %}Format:{% endif %} {{ experiment.sequence_type }}
                             </span>
                             {% if experiment.is_guest %}
                                 <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
-                                    <i class="bi bi-incognito me-1"></i> Experimento Avulso
+                                    <i class="bi bi-incognito me-1"></i> {% if is_pt %}Experimento Avulso{% else %}Guest Experiment{% endif %}
                                 </span>
                             {% else %}
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                                    <i class="bi bi-person me-1"></i> {{ experiment.user.username }}
+                                    <i class="bi bi-person me-1"></i> {{ experiment.user.first_name|default:experiment.user.email|default:experiment.user.username }}
                                 </span>
                             {% endif %}
                         </div>
@@ -48,19 +59,19 @@
                     <div class="d-flex flex-wrap gap-2">
                         {% if experiment.status == 'COMPLETED' %}
                             <a href="{% url 'experiment_download_zip' uuid=experiment.uuid %}" class="btn btn-success">
-                                <i class="bi bi-file-earmark-zip me-1"></i> Baixar Pacote ZIP
+                                <i class="bi bi-file-earmark-zip me-1"></i> {% if is_pt %}Baixar Pacote ZIP{% else %}Download ZIP Archive{% endif %}
                             </a>
                         {% endif %}
                         {% if experiment.status == 'FAILED' %}
                             <form method="post" action="{% url 'experiment_retry' uuid=experiment.uuid %}" class="d-inline">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-warning">
-                                    <i class="bi bi-arrow-clockwise me-1"></i> Tentar Novamente
+                                    <i class="bi bi-arrow-clockwise me-1"></i> {% if is_pt %}Tentar Novamente{% else %}Retry Experiment{% endif %}
                                 </button>
                             </form>
                         {% endif %}
                         <a href="{% url 'experiment_create' %}" class="btn btn-outline-primary">
-                            <i class="bi bi-plus-lg me-1"></i> Novo Experimento
+                            <i class="bi bi-plus-lg me-1"></i> {% if is_pt %}Novo Experimento{% else %}New Experiment{% endif %}
                         </a>
                     </div>
                 </div>
@@ -69,7 +80,8 @@
                 <div class="mt-4">
                     <div class="d-flex justify-content-between align-items-center mb-1 small">
                         <span class="fw-semibold text-secondary">
-                            Etapa Atual: <span id="current-step-label" class="text-primary">{{ experiment.current_step }}</span>
+                            {% if is_pt %}Etapa Atual:{% else %}Current Step:{% endif %}
+                            <span id="current-step-label" class="text-primary">{{ experiment.current_step }}</span>
                         </span>
                         <span id="progress-percent-label" class="fw-bold">{{ experiment.progress_percent }}%</span>
                     </div>
@@ -83,7 +95,10 @@
                 <!-- Alerta de Erro se Houver Falha -->
                 {% if experiment.status == 'FAILED' or experiment.error_message %}
                 <div id="error-alert" class="alert alert-danger mt-3 mb-0">
-                    <h6 class="fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Erro na Execução:</h6>
+                    <h6 class="fw-bold">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        {% if is_pt %}Erro na Execução:{% else %}Execution Error:{% endif %}
+                    </h6>
                     <pre class="mb-0 font-monospace small" style="white-space: pre-wrap;">{{ experiment.error_message }}</pre>
                 </div>
                 {% endif %}
@@ -97,16 +112,19 @@
             <!-- Coluna da Esquerda: Visualizador 3D -->
             <div class="col-lg-7">
                 <div class="card shadow-sm h-100">
-                    <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <span class="fw-bold"><i class="bi bi-badge-3d text-primary me-2"></i>Visualizador Molecular 3D Interativo</span>
+                    <div class="card-header py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 bg-white">
+                        <span class="fw-bold">
+                            <i class="bi bi-badge-3d text-primary me-2"></i>
+                            {% if is_pt %}Visualizador Molecular 3D Interativo{% else %}Interactive 3D Molecular Viewer{% endif %}
+                        </span>
                         
                         <!-- Seletor de Modelo para Visualizar -->
                         <div class="d-flex align-items-center gap-2">
-                            <label class="small text-muted mb-0">Modelo:</label>
+                            <label class="small text-muted mb-0">{% if is_pt %}Modelo:{% else %}Model:{% endif %}</label>
                             <select id="model-select" class="form-select form-select-sm" style="width: auto;">
                                 {% for m in result_models %}
                                     <option value="{{ m.pdb_file.url }}" {% if m.is_best %}selected{% endif %}>
-                                        {{ m.name }} {% if m.is_best %}(Melhor DOPE){% endif %}{% if m.is_loop_model %}(Loop){% endif %}
+                                        {{ m.name }} {% if m.is_best %}({% if is_pt %}Melhor DOPE{% else %}Best DOPE{% endif %}){% endif %}{% if m.is_loop_model %}(Loop){% endif %}
                                     </option>
                                 {% endfor %}
                             </select>
@@ -116,32 +134,37 @@
                     <div class="card-body p-3">
                         <!-- Controles do Visualizador 3D -->
                         <div class="d-flex flex-wrap gap-2 mb-2 p-2 bg-light rounded border">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-secondary active" onclick="setStyle('cartoon')">Cartoon</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="setStyle('stick')">Sticks</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="setStyle('sphere')">Esferas</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="setStyle('surface')">Superfície</button>
+                            <div class="btn-group btn-group-sm" role="group" id="detail-style-buttons">
+                                <button type="button" class="btn btn-outline-secondary active" data-style="cartoon" onclick="setStyle('cartoon', this)">Cartoon</button>
+                                <button type="button" class="btn btn-outline-secondary" data-style="stick" onclick="setStyle('stick', this)">Sticks</button>
+                                <button type="button" class="btn btn-outline-secondary" data-style="sphere" onclick="setStyle('sphere', this)">{% if is_pt %}Esferas{% else %}Spheres{% endif %}</button>
+                                <button type="button" class="btn btn-outline-secondary" data-style="surface" onclick="setStyle('surface', this)">{% if is_pt %}Superfície{% else %}Surface{% endif %}</button>
                             </div>
 
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-secondary active" onclick="setColorScheme('spectrum')">Espectro</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="setColorScheme('ssPyMOL')">Estrutura 2ª</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="setColorScheme('chain')">Cadeia</button>
+                            <div class="btn-group btn-group-sm" role="group" id="detail-color-buttons">
+                                <button type="button" class="btn btn-outline-secondary active" data-color="spectrum" onclick="setColorScheme('spectrum', this)">{% if is_pt %}Espectro{% else %}Spectrum{% endif %}</button>
+                                <button type="button" class="btn btn-outline-secondary" data-color="ssPyMOL" onclick="setColorScheme('ssPyMOL', this)">{% if is_pt %}Estrutura 2ª{% else %}2nd Structure{% endif %}</button>
+                                <button type="button" class="btn btn-outline-secondary" data-color="chain" onclick="setColorScheme('chain', this)">{% if is_pt %}Cadeia{% else %}Chain{% endif %}</button>
                             </div>
 
                             <button type="button" class="btn btn-sm btn-outline-dark" id="btn-spin" onclick="toggleSpin()">
-                                <i class="bi bi-arrow-repeat"></i> Girar
+                                <i class="bi bi-arrow-repeat"></i> {% if is_pt %}Girar{% else %}Spin{% endif %}
                             </button>
 
-                            <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="resetView()">
-                                <i class="bi bi-arrows-fullscreen"></i> Centrar
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" onclick="resetView()" title="{% if is_pt %}Centrar{% else %}Center{% endif %}">
+                                <i class="bi bi-arrows-fullscreen"></i> {% if is_pt %}Centrar{% else %}Center{% endif %}
                             </button>
                         </div>
 
                         <!-- Canvas 3Dmol -->
                         <div id="mol-viewer" class="viewer_3d"></div>
                         <div class="form-text small mt-1 text-muted">
-                            <i class="bi bi-mouse me-1"></i> Arraste com o botão esquerdo para rotacionar, botão direito para transladar e scroll do mouse para zoom.
+                            <i class="bi bi-mouse me-1"></i>
+                            {% if is_pt %}
+                                Arraste com o botão esquerdo para rotacionar, botão direito para transladar e scroll do mouse para zoom.
+                            {% else %}
+                                Left-drag to rotate, right-drag to pan, and mouse scroll to zoom.
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -150,18 +173,23 @@
             <!-- Coluna da Direita: Métricas e Gráfico DOPE -->
             <div class="col-lg-5">
                 <div class="card shadow-sm mb-4">
-                    <div class="card-header py-3">
-                        <span class="fw-bold"><i class="bi bi-award text-warning me-2"></i>Avaliação de Qualidade</span>
+                    <div class="card-header py-3 bg-white">
+                        <span class="fw-bold">
+                            <i class="bi bi-award text-warning me-2"></i>
+                            {% if is_pt %}Avaliação de Qualidade{% else %}Quality Assessment{% endif %}
+                        </span>
                     </div>
                     <div class="card-body">
                         <div class="row g-3 text-center">
                             <div class="col-6">
                                 <div class="p-3 bg-light rounded border">
-                                    <div class="small text-muted">Melhor DOPE Score</div>
+                                    <div class="small text-muted">{% if is_pt %}Melhor DOPE Score{% else %}Best DOPE Score{% endif %}</div>
                                     <div class="fs-4 fw-bold text-primary" id="metric-dope">
                                         {{ experiment.best_dope_score|default:"-"|floatformat:2 }}
                                     </div>
-                                    <small class="text-muted" style="font-size: 0.75rem;">(Menor/Mais negativo é melhor)</small>
+                                    <small class="text-muted" style="font-size: 0.75rem;">
+                                        {% if is_pt %}(Menor/Mais negativo é melhor){% else %}(Lower/More negative is better){% endif %}
+                                    </small>
                                 </div>
                             </div>
                             <div class="col-6">
@@ -170,13 +198,15 @@
                                     <div class="fs-4 fw-bold text-success" id="metric-ga341">
                                         {{ experiment.best_ga341_score|default:"1.00"|floatformat:2 }}
                                     </div>
-                                    <small class="text-muted" style="font-size: 0.75rem;">(&ge; 0.60 indica enovelamento correto)</small>
+                                    <small class="text-muted" style="font-size: 0.75rem;">
+                                        {% if is_pt %}(&ge; 0.60 indica enovelamento correto){% else %}(&ge; 0.60 indicates native-like fold){% endif %}
+                                    </small>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="p-2 bg-light rounded border text-start small">
-                                    <div><strong>Template Homólogo:</strong> <code>{{ experiment.selected_template }}</code> (Cadeia: {{ experiment.template_chain }})</div>
-                                    <div><strong>Melhor Arquivo PDB:</strong> <code>{{ experiment.best_model_name }}</code></div>
+                                    <div><strong>{% if is_pt %}Template Homólogo:{% else %}Homologous Template:{% endif %}</strong> <code>{{ experiment.selected_template }}</code> ({% if is_pt %}Cadeia{% else %}Chain{% endif %}: {{ experiment.template_chain }})</div>
+                                    <div><strong>{% if is_pt %}Melhor Arquivo PDB:{% else %}Best PDB Model:{% endif %}</strong> <code>{{ experiment.best_model_name }}</code></div>
                                 </div>
                             </div>
                         </div>
@@ -185,20 +215,27 @@
 
                 <!-- Gráfico DOPE Profile -->
                 <div class="card shadow-sm">
-                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                        <span class="fw-bold"><i class="bi bi-graph-up text-danger me-2"></i>Perfil Energético DOPE</span>
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center bg-white">
+                        <span class="fw-bold">
+                            <i class="bi bi-graph-up text-danger me-2"></i>
+                            {% if is_pt %}Perfil Energético DOPE{% else %}DOPE Energy Profile{% endif %}
+                        </span>
                         {% if experiment.dope_plot %}
-                            <a href="{{ experiment.dope_plot.url }}" target="_blank" class="btn btn-outline-secondary btn-sm" id="btn-view-plot">
+                            <a href="{{ experiment.dope_plot.url }}" target="_blank" class="btn btn-outline-secondary btn-sm" id="btn-view-plot" title="{% if is_pt %}Abrir imagem ampliada{% else %}Open full image{% endif %}">
                                 <i class="bi bi-box-arrow-up-right"></i>
                             </a>
                         {% endif %}
                     </div>
                     <div class="card-body text-center p-3">
                         <img id="dope-plot-img" src="{% if experiment.dope_plot %}{{ experiment.dope_plot.url }}{% endif %}" 
-                             alt="Gráfico de Perfil DOPE" class="img-fluid rounded border shadow-sm"
+                             alt="DOPE Profile Plot" class="img-fluid rounded border shadow-sm"
                              style="max-height: 280px; {% if not experiment.dope_plot %}display: none;{% endif %}">
                         <div class="small text-muted mt-2 text-start">
-                            O gráfico compara a energia DOPE resíduo a resíduo do modelo gerado contra a estrutura de referência (Template).
+                            {% if is_pt %}
+                                O gráfico compara a energia DOPE resíduo a resíduo do modelo gerado contra a estrutura de referência (Template).
+                            {% else %}
+                                This chart compares per-residue DOPE energy profiles between the built model and the crystallographic template.
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -207,19 +244,22 @@
             <!-- Tabela com Todos os Modelos Gerados -->
             <div class="col-12">
                 <div class="card shadow-sm">
-                    <div class="card-header py-3">
-                        <span class="fw-bold"><i class="bi bi-boxes text-info me-2"></i>Estruturas 3D Geradas pelo Modeller</span>
+                    <div class="card-header py-3 bg-white">
+                        <span class="fw-bold">
+                            <i class="bi bi-boxes text-info me-2"></i>
+                            {% if is_pt %}Estruturas 3D Geradas pelo Modeller{% else %}3D Structures Generated by Modeller{% endif %}
+                        </span>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0" id="models-table">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Nome do Arquivo</th>
-                                        <th>Tipo</th>
+                                        <th>{% if is_pt %}Nome do Arquivo{% else %}File Name{% endif %}</th>
+                                        <th>{% if is_pt %}Tipo{% else %}Type{% endif %}</th>
                                         <th>DOPE Score</th>
                                         <th>GA341</th>
-                                        <th>Classificação</th>
+                                        <th>{% if is_pt %}Classificação{% else %}Classification{% endif %}</th>
                                         <th class="text-end">Download</th>
                                     </tr>
                                 </thead>
@@ -231,18 +271,18 @@
                                         </td>
                                         <td>
                                             {% if m.is_loop_model %}
-                                                <span class="badge bg-info text-dark">Refinamento de Loop</span>
+                                                <span class="badge bg-info text-dark">{% if is_pt %}Refinamento de Loop{% else %}Loop Refinement{% endif %}</span>
                                             {% else %}
-                                                <span class="badge bg-secondary">Automodel Padrão</span>
+                                                <span class="badge bg-secondary">{% if is_pt %}Automodel Padrão{% else %}Standard Automodel{% endif %}</span>
                                             {% endif %}
                                         </td>
                                         <td class="fw-semibold">{{ m.dope_score|default:"-"|floatformat:2 }}</td>
                                         <td>{{ m.ga341_score|default:"-"|floatformat:4 }}</td>
                                         <td>
                                             {% if m.is_best %}
-                                                <span class="badge bg-success"><i class="bi bi-star-fill me-1"></i>Melhor Modelo</span>
+                                                <span class="badge bg-success"><i class="bi bi-star-fill me-1"></i>{% if is_pt %}Melhor Modelo{% else %}Best Model{% endif %}</span>
                                             {% else %}
-                                                <span class="text-muted">Candidato</span>
+                                                <span class="text-muted">{% if is_pt %}Candidato{% else %}Candidate{% endif %}</span>
                                             {% endif %}
                                         </td>
                                         <td class="text-end">
@@ -255,7 +295,9 @@
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="6" class="text-center text-muted py-3">Nenhum modelo gerado ainda.</td>
+                                        <td colspan="6" class="text-center text-muted py-3">
+                                            {% if is_pt %}Nenhum modelo gerado ainda.{% else %}No models generated yet.{% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -268,26 +310,30 @@
             <!-- Abas com Moldes e Alinhamento -->
             <div class="col-12">
                 <div class="card shadow-sm">
-                    <div class="card-header">
+                    <div class="card-header bg-white">
                         <ul class="nav nav-tabs card-header-tabs" role="tablist">
                             <li class="nav-item">
                                 <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-templates">
-                                    <i class="bi bi-search me-1"></i> Moldes Homólogos (FindTemplatesStep)
+                                    <i class="bi bi-search me-1"></i>
+                                    {% if is_pt %}Moldes Homólogos (FindTemplatesStep){% else %}Homologous Templates (FindTemplatesStep){% endif %}
                                 </button>
                             </li>
                             <li class="nav-item">
                                 <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-alignment">
-                                    <i class="bi bi-justify me-1"></i> Alinhamento 2D (AlignStep)
+                                    <i class="bi bi-justify me-1"></i>
+                                    {% if is_pt %}Alinhamento 2D (AlignStep){% else %}2D Alignment (AlignStep){% endif %}
                                 </button>
                             </li>
                             <li class="nav-item">
                                 <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-sequence">
-                                    <i class="bi bi-file-text me-1"></i> Sequência Original
+                                    <i class="bi bi-file-text me-1"></i>
+                                    {% if is_pt %}Sequência Original{% else %}Original Sequence{% endif %}
                                 </button>
                             </li>
                             <li class="nav-item">
                                 <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-logs">
-                                    <i class="bi bi-terminal me-1"></i> Log de Execução Modeller
+                                    <i class="bi bi-terminal me-1"></i>
+                                    {% if is_pt %}Log de Execução Modeller{% else %}Modeller Execution Log{% endif %}
                                 </button>
                             </li>
                         </ul>
@@ -301,9 +347,9 @@
                                     <table class="table table-sm table-striped">
                                         <thead>
                                             <tr>
-                                                <th>Código PDB / Molde</th>
-                                                <th>Cadeia</th>
-                                                <th>Identidade de Sequência</th>
+                                                <th>{% if is_pt %}Código PDB / Molde{% else %}PDB Template Code{% endif %}</th>
+                                                <th>{% if is_pt %}Cadeia{% else %}Chain{% endif %}</th>
+                                                <th>{% if is_pt %}Identidade de Sequência{% else %}Sequence Identity{% endif %}</th>
                                                 <th>Status</th>
                                             </tr>
                                         </thead>
@@ -315,15 +361,17 @@
                                                 <td>{{ c.identity|floatformat:2 }}%</td>
                                                 <td>
                                                     {% if c.is_selected %}
-                                                        <span class="badge bg-primary">Selecionado</span>
+                                                        <span class="badge bg-primary">{% if is_pt %}Selecionado{% else %}Selected{% endif %}</span>
                                                     {% else %}
-                                                        <span class="text-muted">Candidato</span>
+                                                        <span class="text-muted">{% if is_pt %}Candidato{% else %}Candidate{% endif %}</span>
                                                     {% endif %}
                                                 </td>
                                             </tr>
                                             {% empty %}
                                             <tr>
-                                                <td colspan="4" class="text-center text-muted">Aguardando busca de templates no banco pdb_95.</td>
+                                                <td colspan="4" class="text-center text-muted">
+                                                    {% if is_pt %}Aguardando busca de templates no banco pdb_95.{% else %}Awaiting template search in pdb_95 database.{% endif %}
+                                                </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -336,17 +384,21 @@
                                 <div class="d-flex gap-2 mb-3">
                                     {% if experiment.alignment_pir %}
                                         <a href="{{ experiment.alignment_pir.url }}" download class="btn btn-outline-primary btn-sm">
-                                            <i class="bi bi-download me-1"></i> Baixar ali.ali (PIR)
+                                            <i class="bi bi-download me-1"></i> {% if is_pt %}Baixar ali.ali (PIR){% else %}Download ali.ali (PIR){% endif %}
                                         </a>
                                     {% endif %}
                                     {% if experiment.alignment_pap %}
                                         <a href="{{ experiment.alignment_pap.url }}" download class="btn btn-outline-secondary btn-sm">
-                                            <i class="bi bi-download me-1"></i> Baixar ali.pap (PAP)
+                                            <i class="bi bi-download me-1"></i> {% if is_pt %}Baixar ali.pap (PAP){% else %}Download ali.pap (PAP){% endif %}
                                         </a>
                                     {% endif %}
                                 </div>
                                 <div class="alert alert-light border small text-muted">
-                                    Os arquivos de alinhamento <strong>ali.ali</strong> e <strong>ali.pap</strong> são produzidos pelo <code>AlignStep</code> casando a sequência do template baixado com a sequência alvo.
+                                    {% if is_pt %}
+                                        Os arquivos de alinhamento <strong>ali.ali</strong> e <strong>ali.pap</strong> são produzidos pelo <code>AlignStep</code> casando a sequência do template baixado com a sequência alvo.
+                                    {% else %}
+                                        The alignment files <strong>ali.ali</strong> and <strong>ali.pap</strong> are produced by <code>AlignStep</code>, pairing target and downloaded template sequences.
+                                    {% endif %}
                                 </div>
                             </div>
 
@@ -357,7 +409,7 @@
 
                             <!-- Aba Logs -->
                             <div class="tab-pane fade" id="tab-logs">
-                                <pre id="log-output-box" class="font-monospace p-3 bg-dark text-light rounded mb-0 small" style="max-height: 400px; overflow-y: auto;">{{ experiment.log_output|default:"Aguardando logs de execução..." }}</pre>
+                                <pre id="log-output-box" class="font-monospace p-3 bg-dark text-light rounded mb-0 small" style="max-height: 400px; overflow-y: auto;">{{ experiment.log_output|default:"No logs available yet..." }}</pre>
                             </div>
                         </div>
                     </div>
@@ -399,7 +451,7 @@
                 viewer3d.zoomTo();
                 viewer3d.render();
             })
-            .catch(err => console.error("Erro ao carregar PDB no 3Dmol:", err));
+            .catch(err => console.error("Error loading PDB into 3Dmol:", err));
     }
 
     function applyViewerStyle() {
@@ -428,13 +480,29 @@
         viewer3d.render();
     }
 
-    function setStyle(styleName) {
+    function setStyle(styleName, btn) {
         currentStyle = styleName;
+        const styleBtns = document.querySelectorAll('#detail-style-buttons button');
+        styleBtns.forEach(b => {
+            if (b === btn || b.getAttribute('data-style') === styleName) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
         applyViewerStyle();
     }
 
-    function setColorScheme(schemeName) {
+    function setColorScheme(schemeName, btn) {
         currentColor = schemeName;
+        const colorBtns = document.querySelectorAll('#detail-color-buttons button');
+        colorBtns.forEach(b => {
+            if (b === btn || b.getAttribute('data-color') === schemeName) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
         applyViewerStyle();
     }
 
@@ -496,7 +564,7 @@
                         window.location.reload();
                     }
                 })
-                .catch(err => console.error("Erro no polling:", err));
+                .catch(err => console.error("Polling error:", err));
         }, 2000);
     }
 </script>
