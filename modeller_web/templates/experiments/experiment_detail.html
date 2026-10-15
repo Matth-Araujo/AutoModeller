@@ -86,9 +86,34 @@
                         <span id="progress-percent-label" class="fw-bold">{{ experiment.progress_percent }}%</span>
                     </div>
                     <div class="progress" style="height: 12px;">
-                        <div id="progress-bar" class="progress-bar {% if experiment.status == 'RUNNING' %}progress-bar-striped progress-bar-animated bg-primary{% elif experiment.status == 'COMPLETED' %}bg-success{% elif experiment.status == 'FAILED' %}bg-danger{% else %}bg-secondary{% endif %}" 
+                        <div id="progress-bar" class="progress-bar {% if experiment.status == 'RUNNING' %}progress-bar-striped progress-bar-animated bg-primary{% elif experiment.status == 'AWAITING_TEMPLATE' %}bg-warning text-dark progress-bar-striped progress-bar-animated{% elif experiment.status == 'COMPLETED' %}bg-success{% elif experiment.status == 'FAILED' %}bg-danger{% else %}bg-secondary{% endif %}" 
                              role="progressbar" style="width: {{ experiment.progress_percent }}%;">
                         </div>
+                    </div>
+                </div>
+
+                <!-- Banner de Aguardando Seleção de Molde -->
+                <div id="awaiting-template-banner" class="alert alert-warning border border-warning shadow-sm mt-3 mb-0 {% if experiment.status != 'AWAITING_TEMPLATE' %}d-none{% endif %}">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="bi bi-hourglass-split fs-2 text-warning"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1">
+                                    {% if is_pt %}Busca de Moldes Concluída! Aguardando Seleção do Template{% else %}Template Search Complete! Awaiting Template Selection{% endif %}
+                                </h6>
+                                <p class="small text-muted mb-0">
+                                    {% if is_pt %}
+                                        O Modeller concluiu o escaneamento estrutural (FindTemplatesStep). Escolha o molde e os parâmetros para construir seus modelos 3D.
+                                    {% else %}
+                                        Modeller finished structural scanning (FindTemplatesStep). Choose your template and parameters to build 3D models.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <a href="{% url 'template_select' uuid=experiment.uuid %}" class="btn btn-primary fw-bold px-4">
+                            <i class="bi bi-hand-index-thumb me-1"></i>
+                            {% if is_pt %}Selecionar Template Agora{% else %}Select Template Now{% endif %}
+                        </a>
                     </div>
                 </div>
 
@@ -379,26 +404,93 @@
                                 </div>
                             </div>
 
-                            <!-- Aba Alinhamento -->
+                            <!-- Aba Alinhamento 2D (AlignStep) -->
                             <div class="tab-pane fade" id="tab-alignment">
-                                <div class="d-flex gap-2 mb-3">
-                                    {% if experiment.alignment_pir %}
-                                        <a href="{{ experiment.alignment_pir.url }}" download class="btn btn-outline-primary btn-sm">
-                                            <i class="bi bi-download me-1"></i> {% if is_pt %}Baixar ali.ali (PIR){% else %}Download ali.ali (PIR){% endif %}
-                                        </a>
-                                    {% endif %}
-                                    {% if experiment.alignment_pap %}
-                                        <a href="{{ experiment.alignment_pap.url }}" download class="btn btn-outline-secondary btn-sm">
-                                            <i class="bi bi-download me-1"></i> {% if is_pt %}Baixar ali.pap (PAP){% else %}Download ali.pap (PAP){% endif %}
-                                        </a>
-                                    {% endif %}
+                                <div id="alignment-empty-box" class="text-center py-5 text-muted {% if alignment_data.has_alignment %}d-none{% endif %}">
+                                    <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                                    <h6 class="fw-bold mb-1">
+                                        {% if is_pt %}Alinhamento 2D em processamento...{% else %}2D Alignment in progress...{% endif %}
+                                    </h6>
+                                    <p class="small mb-0">
+                                        {% if is_pt %}
+                                            Assim que o <code>AlignStep</code> parear o molde com a sequência alvo, a matriz de alinhamento e resíduos conservados serão exibidos aqui automaticamente.
+                                        {% else %}
+                                            Once <code>AlignStep</code> matches the template to the target sequence, alignment matrix and conserved residues will appear here automatically.
+                                        {% endif %}
+                                    </p>
                                 </div>
-                                <div class="alert alert-light border small text-muted">
-                                    {% if is_pt %}
-                                        Os arquivos de alinhamento <strong>ali.ali</strong> e <strong>ali.pap</strong> são produzidos pelo <code>AlignStep</code> casando a sequência do template baixado com a sequência alvo.
-                                    {% else %}
-                                        The alignment files <strong>ali.ali</strong> and <strong>ali.pap</strong> are produced by <code>AlignStep</code>, pairing target and downloaded template sequences.
-                                    {% endif %}
+
+                                <div id="alignment-content-box" class="{% if not alignment_data.has_alignment %}d-none{% endif %}">
+                                    <!-- Barra Superior do Alinhamento -->
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 pb-3 border-bottom">
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                                                <i class="bi bi-bullseye me-1"></i>
+                                                {% if is_pt %}Alvo:{% else %}Target:{% endif %} <strong>{{ experiment.sequence_name }}</strong>
+                                            </span>
+                                            <span class="badge bg-info-subtle text-dark border border-info-subtle px-3 py-2">
+                                                <i class="bi bi-box me-1"></i>
+                                                {% if is_pt %}Molde:{% else %}Template:{% endif %} <strong id="align-template-label">{{ experiment.selected_template|default:"-" }}</strong> (<span id="align-chain-label">{% if is_pt %}Cadeia{% else %}Chain{% endif %}: {{ experiment.template_chain|default:"A" }}</span>)
+                                            </span>
+                                            <span id="alignment-conserved-badge" class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                                                <i class="bi bi-asterisk me-1"></i>
+                                                <strong id="alignment-conserved-count">{{ alignment_data.conserved_count }}</strong> {% if is_pt %}resíduos conservados (*){% else %}conserved residues (*){% endif %}
+                                            </span>
+                                        </div>
+
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                            <!-- Seletor de Formato PAP vs PIR -->
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button type="button" class="btn btn-outline-primary active" id="btn-show-pap" onclick="switchAlignmentFormat('pap')">
+                                                    <i class="bi bi-layout-text-sidebar-reverse me-1"></i> {% if is_pt %}Visão PAP (Conservação *){% else %}PAP View (Conservation *){% endif %}
+                                                </button>
+                                                <button type="button" class="btn btn-outline-primary" id="btn-show-pir" onclick="switchAlignmentFormat('pir')">
+                                                    <i class="bi bi-code-slash me-1"></i> {% if is_pt %}Formato PIR (ali.ali){% else %}PIR Format (ali.ali){% endif %}
+                                                </button>
+                                            </div>
+
+                                            <!-- Downloads -->
+                                            <div class="btn-group btn-group-sm">
+                                                {% if experiment.alignment_pap %}
+                                                    <a id="download-pap-btn" href="{{ experiment.alignment_pap.url }}" download class="btn btn-outline-secondary" title="Download ali.pap">
+                                                        <i class="bi bi-download me-1"></i> ali.pap
+                                                    </a>
+                                                {% else %}
+                                                    <a id="download-pap-btn" href="#" download class="btn btn-outline-secondary disabled" title="Download ali.pap">
+                                                        <i class="bi bi-download me-1"></i> ali.pap
+                                                    </a>
+                                                {% endif %}
+                                                {% if experiment.alignment_pir %}
+                                                    <a id="download-pir-btn" href="{{ experiment.alignment_pir.url }}" download class="btn btn-outline-secondary" title="Download ali.ali">
+                                                        <i class="bi bi-download me-1"></i> ali.ali
+                                                    </a>
+                                                {% else %}
+                                                    <a id="download-pir-btn" href="#" download class="btn btn-outline-secondary disabled" title="Download ali.ali">
+                                                        <i class="bi bi-download me-1"></i> ali.ali
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Legenda e Instruções PAP -->
+                                    <div id="pap-legend-box" class="alert alert-light border small text-muted py-2 px-3 mb-3 d-flex flex-wrap align-items-center gap-3">
+                                        <div><span class="badge bg-secondary font-monospace">_aln.pos</span>: {% if is_pt %}Posição do alinhamento{% else %}Alignment position{% endif %}</div>
+                                        <div><span class="badge bg-warning text-dark font-monospace">*</span>: {% if is_pt %}Resíduo idêntico conservado entre alvo e template{% else %}Identical conserved residue between target & template{% endif %}</div>
+                                        <div><span class="badge bg-light text-dark border font-monospace">-</span>: {% if is_pt %}Gap de inserção/deleção{% else %}Indel gap{% endif %}</div>
+                                    </div>
+
+                                    <!-- Visualizador Formato PAP -->
+                                    <div id="alignment-pap-container">
+                                        <pre id="alignment-pap-box" class="font-monospace p-3 bg-dark text-light rounded small mb-0" 
+                                             style="white-space: pre; overflow-x: auto; max-height: 480px; font-size: 0.85rem; line-height: 1.55; letter-spacing: 0.5px;">{{ alignment_data.pap_text }}</pre>
+                                    </div>
+
+                                    <!-- Visualizador Formato PIR -->
+                                    <div id="alignment-pir-container" class="d-none">
+                                        <pre id="alignment-pir-box" class="font-monospace p-3 bg-dark text-light rounded small mb-0" 
+                                             style="white-space: pre; overflow-x: auto; max-height: 480px; font-size: 0.85rem; line-height: 1.55;">{{ alignment_data.pir_text }}</pre>
+                                    </div>
                                 </div>
                             </div>
 
@@ -539,6 +631,29 @@
         }
     }
 
+    // Alternância de formato do alinhamento 2D (PAP vs PIR)
+    function switchAlignmentFormat(format) {
+        const papContainer = document.getElementById('alignment-pap-container');
+        const pirContainer = document.getElementById('alignment-pir-container');
+        const papLegend = document.getElementById('pap-legend-box');
+        const btnPap = document.getElementById('btn-show-pap');
+        const btnPir = document.getElementById('btn-show-pir');
+
+        if (format === 'pap') {
+            if (papContainer) papContainer.classList.remove('d-none');
+            if (pirContainer) pirContainer.classList.add('d-none');
+            if (papLegend) papLegend.classList.remove('d-none');
+            if (btnPap) btnPap.classList.add('active');
+            if (btnPir) btnPir.classList.remove('active');
+        } else {
+            if (papContainer) papContainer.classList.add('d-none');
+            if (pirContainer) pirContainer.classList.remove('d-none');
+            if (papLegend) papLegend.classList.add('d-none');
+            if (btnPap) btnPap.classList.remove('active');
+            if (btnPir) btnPir.classList.add('active');
+        }
+    }
+
     // Polling em tempo real se o experimento estiver rodando ou pendente
     if (!isCompleted && !isFailed) {
         const pollInterval = setInterval(() => {
@@ -546,10 +661,62 @@
                 .then(res => res.json())
                 .then(data => {
                     // Atualiza Barra e Etapa
-                    document.getElementById('current-step-label').textContent = data.current_step;
-                    document.getElementById('progress-percent-label').textContent = data.progress_percent + '%';
+                    const stepLabel = document.getElementById('current-step-label');
+                    if (stepLabel) stepLabel.textContent = data.current_step;
+                    
+                    const percentLabel = document.getElementById('progress-percent-label');
+                    if (percentLabel) percentLabel.textContent = data.progress_percent + '%';
+                    
                     const bar = document.getElementById('progress-bar');
-                    bar.style.width = data.progress_percent + '%';
+                    if (bar) {
+                        bar.style.width = data.progress_percent + '%';
+                        if (data.status === 'AWAITING_TEMPLATE') {
+                            bar.className = 'progress-bar bg-warning text-dark progress-bar-striped progress-bar-animated';
+                        }
+                    }
+
+                    // Se estiver aguardando seleção de template
+                    if (data.status === 'AWAITING_TEMPLATE') {
+                        const banner = document.getElementById('awaiting-template-banner');
+                        if (banner) banner.classList.remove('d-none');
+
+                        // Se estiver no modo guiado com parâmetros, redireciona para a página de seleção
+                        if (data.pipeline_mode === 'STEP') {
+                            clearInterval(pollInterval);
+                            window.location.href = `/experiments/${experimentUuid}/select-template/`;
+                            return;
+                        }
+                    }
+
+                    // Atualiza Alinhamento 2D se disponível
+                    if (data.alignment_data && data.alignment_data.has_alignment) {
+                        const emptyBox = document.getElementById('alignment-empty-box');
+                        const contentBox = document.getElementById('alignment-content-box');
+                        const papBox = document.getElementById('alignment-pap-box');
+                        const pirBox = document.getElementById('alignment-pir-box');
+                        const conservedCount = document.getElementById('alignment-conserved-count');
+                        const alignTemplateLabel = document.getElementById('align-template-label');
+                        const alignChainLabel = document.getElementById('align-chain-label');
+
+                        if (emptyBox) emptyBox.classList.add('d-none');
+                        if (contentBox) contentBox.classList.remove('d-none');
+                        if (papBox && data.alignment_data.pap_text) papBox.textContent = data.alignment_data.pap_text;
+                        if (pirBox && data.alignment_data.pir_text) pirBox.textContent = data.alignment_data.pir_text;
+                        if (conservedCount) conservedCount.textContent = data.alignment_data.conserved_count;
+                        if (alignTemplateLabel && data.selected_template) alignTemplateLabel.textContent = data.selected_template;
+                        if (alignChainLabel && data.template_chain) alignChainLabel.textContent = `Chain: ${data.template_chain}`;
+
+                        const downloadPap = document.getElementById('download-pap-btn');
+                        if (downloadPap && downloadPap.classList.contains('disabled')) {
+                            downloadPap.classList.remove('disabled');
+                            downloadPap.href = `/media/workspaces/${experimentUuid}/ali.pap`;
+                        }
+                        const downloadPir = document.getElementById('download-pir-btn');
+                        if (downloadPir && downloadPir.classList.contains('disabled')) {
+                            downloadPir.classList.remove('disabled');
+                            downloadPir.href = `/media/workspaces/${experimentUuid}/ali.ali`;
+                        }
+                    }
 
                     // Atualiza Log
                     const logBox = document.getElementById('log-output-box');

@@ -10,8 +10,13 @@ from django.conf import settings
 from django.utils import timezone
 
 from .models import Experiment, ExperimentResultModel, TemplateCandidate
-from .forms import ExperimentCreateForm, RegisterForm
-from .services import start_experiment_async, create_experiment_zip
+from .forms import ExperimentCreateForm, TemplateSelectForm, RegisterForm
+from .services import (
+    start_experiment_async,
+    start_model_building_async,
+    get_alignment_data,
+    create_experiment_zip,
+)
 from .featured import get_daily_featured_structures
 
 SAMPLE_TVLDH_PIR = """>P1;TvLDH
@@ -120,11 +125,18 @@ def experiment_create(request):
             # Disparar pipeline assíncrona
             start_experiment_async(experiment.id)
 
-            if _is_pt(request):
-                messages.success(request, f"Experimento '{experiment.title}' iniciado com sucesso!")
+            if experiment.pipeline_mode == 'STEP':
+                if _is_pt(request):
+                    messages.info(request, f"Experimento '{experiment.title}' iniciado! Selecione o molde homólogo para continuar.")
+                else:
+                    messages.info(request, f"Experiment '{experiment.title}' started! Please select the homologous template to proceed.")
+                return redirect('template_select', uuid=experiment.uuid)
             else:
-                messages.success(request, f"Experiment '{experiment.title}' started successfully!")
-            return redirect('experiment_detail', uuid=experiment.uuid)
+                if _is_pt(request):
+                    messages.success(request, f"Experimento '{experiment.title}' iniciado com sucesso!")
+                else:
+                    messages.success(request, f"Experiment '{experiment.title}' started successfully!")
+                return redirect('experiment_detail', uuid=experiment.uuid)
     else:
         form = ExperimentCreateForm(initial=initial_data)
 
@@ -134,18 +146,99 @@ def experiment_create(request):
     })
 
 
+def template_select(request, uuid):
+    """Página dedicada para inspeção e seleção interativa do molde homólogo (template)."""
+    experiment = get_object_or_404(Experiment, uuid=uuid)
+    candidates = experiment.candidates.all()
+    is_pt = _is_pt(request)
+
+    # Se já concluiu tudo ou falhou, redireciona para detalhes
+    if experiment.status in ('COMPLETED', 'FAILED'):
+        return redirect('experiment_detail', uuid=experiment.uuid)
+
+    if request.method == 'POST':
+        form = TemplateSelectForm(request.POST)
+        if form.is_valid():
+            custom_pdb = form.cleaned_data.get('custom_pdb', '').strip().upper()
+            custom_chain = form.cleaned_data.get('custom_chain', '').strip().upper() or 'A'
+            template_code = form.cleaned_data.get('template_code', '').strip().upper()
+            template_chain = form.cleaned_data.get('template_chain', '').strip().upper() or 'A'
+
+            if custom_pdb:
+                final_template = custom_pdb
+                final_chain = custom_chain
+            elif template_code:
+                final_template = template_code
+                final_chain = template_chain
+            elif candidates.exists():
+                final_template = candidates.first().code
+                final_chain = candidates.first().chain
+            else:
+                final_template = '1BDM'
+                final_chain = 'A'
+
+            experiment.selected_template = final_template
+            experiment.template_chain = final_chain
+
+            num_models = form.cleaned_data.get('num_models')
+            if num_models:
+                experiment.num_models = num_models
+            experiment.enable_loop_refinement = form.cleaned_data.get('enable_loop_refinement', False)
+            experiment.loop_start = form.cleaned_data.get('loop_start')
+            experiment.loop_end = form.cleaned_data.get('loop_end')
+
+            # Atualiza flag is_selected nos candidatos
+            candidates.update(is_selected=False)
+            candidates.filter(code__iexact=final_template).update(is_selected=True)
+
+            experiment.status = 'PENDING'
+            experiment.current_step = 'Iniciando alinhamento e modelagem 3D' if is_pt else 'Starting alignment and 3D modeling'
+            experiment.save()
+
+            # Dispara a segunda etapa da pipeline (AlignStep -> BuildModelStep -> etc.)
+            start_model_building_async(experiment.id)
+
+            if is_pt:
+                messages.success(request, f"Molde '{final_template}' selecionado com sucesso! Modelagem 3D em andamento.")
+            else:
+                messages.success(request, f"Template '{final_template}' selected successfully! 3D modeling in progress.")
+
+            return redirect('experiment_detail', uuid=experiment.uuid)
+    else:
+        top_cand = candidates.filter(is_selected=True).first() or candidates.first()
+        initial_data = {
+            'template_code': top_cand.code if top_cand else (experiment.selected_template or ''),
+            'template_chain': top_cand.chain if top_cand else (experiment.template_chain or 'A'),
+            'num_models': experiment.num_models or 5,
+            'enable_loop_refinement': experiment.enable_loop_refinement,
+            'loop_start': experiment.loop_start,
+            'loop_end': experiment.loop_end,
+        }
+        form = TemplateSelectForm(initial=initial_data)
+
+    return render(request, 'experiments/template_select.html', {
+        'experiment': experiment,
+        'candidates': candidates,
+        'form': form,
+        'is_pt': is_pt,
+    })
+
+
 def experiment_detail(request, uuid):
     """Página de detalhes, progresso em tempo real e visualização 3D/gráficos."""
     experiment = get_object_or_404(Experiment, uuid=uuid)
     candidates = experiment.candidates.all()
     result_models = experiment.result_models.all()
     best_model = experiment.best_result_model
+    alignment_data = get_alignment_data(experiment)
 
     return render(request, 'experiments/experiment_detail.html', {
         'experiment': experiment,
         'candidates': candidates,
         'result_models': result_models,
         'best_model': best_model,
+        'alignment_data': alignment_data,
+        'is_pt': _is_pt(request),
     })
 
 
@@ -170,10 +263,15 @@ def experiment_status_api(request, uuid):
         for c in experiment.candidates.all()
     ]
 
+    alignment_data = get_alignment_data(experiment)
+
     return JsonResponse({
         'status': experiment.status,
         'current_step': experiment.current_step,
         'progress_percent': experiment.progress_percent,
+        'pipeline_mode': experiment.pipeline_mode,
+        'selected_template': experiment.selected_template,
+        'template_chain': experiment.template_chain,
         'best_model_name': experiment.best_model_name,
         'best_dope_score': experiment.best_dope_score,
         'best_ga341_score': experiment.best_ga341_score,
@@ -183,6 +281,7 @@ def experiment_status_api(request, uuid):
         'error_message': experiment.error_message,
         'models': models_data,
         'candidates': candidates_data,
+        'alignment_data': alignment_data,
     })
 
 

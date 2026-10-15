@@ -22,6 +22,16 @@ SMOSH_PARENT_DIR = str(BASE_DIR.parent)
 if SMOSH_PARENT_DIR not in sys.path:
     sys.path.insert(0, SMOSH_PARENT_DIR)
 
+# Carrega arquivo .env da raiz do projeto se existir
+env_file = os.path.join(SMOSH_PARENT_DIR, '.env')
+if os.path.exists(env_file):
+    with open(env_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                k, v = line.split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
@@ -150,9 +160,11 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-# Configuração do ambiente Modeller 10.7 (chave e caminhos das bibliotecas nativas C / Python)
-KEY_MODELLER = os.environ.get('KEY_MODELLER', 'MODELIRANJE')
-os.environ['KEY_MODELLER'] = KEY_MODELLER
+# Configuração do ambiente Modeller (chave e caminhos das bibliotecas nativas C / Python)
+# Para obter sua licença acadêmica gratuita, registre-se em https://salilab.org/modeller/registration.html
+KEY_MODELLER = os.environ.get('KEY_MODELLER', '')
+if KEY_MODELLER:
+    os.environ['KEY_MODELLER'] = KEY_MODELLER
 
 MODELLER_INSTALL = os.environ.get('MODINSTALL10v7', '/usr/lib/modeller10.7')
 MODELLER_LIB = os.path.join(MODELLER_INSTALL, 'lib', 'x86_64-intel8')

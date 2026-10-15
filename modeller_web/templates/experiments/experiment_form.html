@@ -123,12 +123,118 @@
                         </div>
                     </div>
 
+                    <!-- Escolha do Modo de Modelagem: Rápida vs Com Parâmetros -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold d-block mb-2">
+                            <i class="bi bi-sliders text-primary me-1"></i>
+                            {% if is_pt %}Como deseja realizar a modelagem?{% else %}How would you like to perform modeling?{% endif %}
+                        </label>
+
+                        <div class="row g-3">
+                            <!-- Opção 1: Modelagem Rápida (100% Automática) -->
+                            <div class="col-md-6">
+                                <div class="card h-100 border p-3 cursor-pointer mode-card shadow-sm" id="card-mode-auto" onclick="selectMode('AUTO')" style="cursor: pointer; transition: all 0.2s;">
+                                    <div class="d-flex align-items-start gap-2 mb-2">
+                                        <input class="form-check-input mt-1" type="radio" name="pipeline_mode" id="mode_auto" value="AUTO" checked onchange="handleModeChange()">
+                                        <div>
+                                            <label class="fw-bold mb-0 text-dark" for="mode_auto" style="cursor: pointer;">
+                                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>
+                                                {% if is_pt %}Modelagem Rápida{% else %}Quick Modeling{% endif %}
+                                            </label>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle small ms-1">
+                                                {% if is_pt %}1-Clique / Automática{% else %}1-Click / Automatic{% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p class="small text-muted mb-0 ps-4">
+                                        {% if is_pt %}
+                                            O sistema seleciona automaticamente o melhor molde homólogo no PDB e gera o modelo 3D diretamente com parâmetros recomendados.
+                                        {% else %}
+                                            The system automatically selects the best homologous template from PDB and generates the 3D model directly with default parameters.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Opção 2: Modelagem com Parâmetros (Seleção de Template Interativa) -->
+                            <div class="col-md-6">
+                                <div class="card h-100 border p-3 cursor-pointer mode-card shadow-sm" id="card-mode-step" onclick="selectMode('STEP')" style="cursor: pointer; transition: all 0.2s;">
+                                    <div class="d-flex align-items-start gap-2 mb-2">
+                                        <input class="form-check-input mt-1" type="radio" name="pipeline_mode" id="mode_step" value="STEP" onchange="handleModeChange()">
+                                        <div>
+                                            <label class="fw-bold mb-0 text-dark" for="mode_step" style="cursor: pointer;">
+                                                <i class="bi bi-gear-wide-connected text-primary me-1"></i>
+                                                {% if is_pt %}Modelagem com Parâmetros{% else %}Custom Guided Modeling{% endif %}
+                                            </label>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle small ms-1">
+                                                {% if is_pt %}Seleção de Template{% else %}Template Selection{% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p class="small text-muted mb-0 ps-4">
+                                        {% if is_pt %}
+                                            Ao submeter, o sistema busca os moldes no PDB e direciona você para uma tela onde <strong>você escolhe o template desejado</strong> e ajusta parâmetros antes de gerar o modelo 3D.
+                                        {% else %}
+                                            Upon submitting, the system searches templates and redirects you to a page where <strong>you select the homologous template</strong> and configure parameters before 3D building.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seção de Parâmetros Avançados (Ativada no modo STEP ou expansível) -->
+                    <div id="section-parameters" class="p-3 bg-light rounded-3 border mb-4 d-none">
+                        <h6 class="fw-bold mb-3 text-primary d-flex align-items-center">
+                            <i class="bi bi-sliders2 me-2"></i>
+                            {% if is_pt %}Parâmetros da Construção de Modelos{% else %}Model Building Parameters{% endif %}
+                        </h6>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold small">
+                                    {% if is_pt %}Número de Modelos 3D a Construir{% else %}Number of 3D Models to Build{% endif %}
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="bi bi-boxes"></i></span>
+                                    {{ form.num_models }}
+                                </div>
+                                <div class="form-text small">
+                                    {% if is_pt %}Entre 1 e 10 modelos comparativos (padrão: 5). O melhor é eleito via DOPE score.{% else %}Between 1 and 10 comparative models (default: 5). Best model chosen by DOPE.{% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-check form-switch pt-4">
+                                    {{ form.enable_loop_refinement }}
+                                    <label class="form-check-label fw-semibold small" for="id_enable_loop_refinement">
+                                        {% if is_pt %}Habilitar Refinamento de Loop Opcional{% else %}Enable Optional Loop Refinement{% endif %}
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12 loop-range-inputs d-none" id="loop-range-container">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted">{% if is_pt %}Resíduo Inicial do Loop{% else %}Loop Start Residue{% endif %}</label>
+                                        {{ form.loop_start }}
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted">{% if is_pt %}Resíduo Final do Loop{% else %}Loop End Residue{% endif %}</label>
+                                        {{ form.loop_end }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="d-flex justify-content-between align-items-center pt-2">
                         <a href="{% url 'home' %}" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left me-1"></i> {% if is_pt %}Cancelar{% else %}Cancel{% endif %}
                         </a>
-                        <button type="submit" class="btn btn-primary btn-lg px-4 shadow-sm">
-                            <i class="bi bi-play-fill me-1"></i> {% if is_pt %}Iniciar Modelagem Automática{% else %}Start Automated Modeling{% endif %}
+                        <button type="submit" class="btn btn-primary btn-lg px-4 shadow-sm" id="btn-submit-action">
+                            <i class="bi bi-play-fill me-1" id="icon-submit-action"></i>
+                            <span id="text-submit-action">{% if is_pt %}Iniciar Modelagem Rápida Automática{% else %}Start Automated Quick Modeling{% endif %}</span>
                         </button>
                     </div>
                 </form>
@@ -136,4 +242,54 @@
         </div>
     </div>
 </div>
+
+<script>
+    function selectMode(mode) {
+        if (mode === 'AUTO') {
+            document.getElementById('mode_auto').checked = true;
+        } else {
+            document.getElementById('mode_step').checked = true;
+        }
+        handleModeChange();
+    }
+
+    function handleModeChange() {
+        const isAuto = document.getElementById('mode_auto').checked;
+        const cardAuto = document.getElementById('card-mode-auto');
+        const cardStep = document.getElementById('card-mode-step');
+        const sectionParams = document.getElementById('section-parameters');
+        const textSubmit = document.getElementById('text-submit-action');
+        const iconSubmit = document.getElementById('icon-submit-action');
+        const isPt = {{ is_pt|yesno:"true,false" }};
+
+        if (isAuto) {
+            cardAuto.classList.add('border-primary', 'bg-primary-subtle', 'bg-opacity-10');
+            cardStep.classList.remove('border-primary', 'bg-primary-subtle', 'bg-opacity-10');
+            sectionParams.classList.add('d-none');
+            textSubmit.textContent = isPt ? "Iniciar Modelagem Rápida Automática" : "Start Automated Quick Modeling";
+            iconSubmit.className = "bi bi-lightning-charge-fill me-1 text-warning";
+        } else {
+            cardStep.classList.add('border-primary', 'bg-primary-subtle', 'bg-opacity-10');
+            cardAuto.classList.remove('border-primary', 'bg-primary-subtle', 'bg-opacity-10');
+            sectionParams.classList.remove('d-none');
+            textSubmit.textContent = isPt ? "Buscar Templates & Selecionar Molde" : "Search Templates & Select Template";
+            iconSubmit.className = "bi bi-arrow-right-circle-fill me-1";
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        handleModeChange();
+
+        const loopCheck = document.getElementById('id_enable_loop_refinement');
+        const loopRange = document.getElementById('loop-range-container');
+        if (loopCheck && loopRange) {
+            const toggleLoop = () => {
+                if (loopCheck.checked) loopRange.classList.remove('d-none');
+                else loopRange.classList.add('d-none');
+            };
+            loopCheck.addEventListener('change', toggleLoop);
+            toggleLoop();
+        }
+    });
+</script>
 {% endblock %}

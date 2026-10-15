@@ -222,6 +222,105 @@ class ExperimentViewsShouldDslTests(TestCase):
         len(response.context['featured_structures']) |should| equal_to(4)
         ('today_str' in response.context) |should| equal_to(True)
 
+    @patch('experiments.views.start_experiment_async')
+    def test_create_experiment_quick_mode_redirects_to_detail(self, mock_start_async):
+        payload = {
+            'title': 'Quick Mode Test',
+            'sequence_type': 'PIR',
+            'pipeline_mode': 'AUTO',
+            'sequence_text': '>P1;QuickProt\nsequence:QuickProt:::::::0.00: 0.00\nMSEAAHVLITGAAGQIGYIL*\n',
+        }
+        response = self.client.post('/experiments/new/', data=payload)
+        response.status_code |should| equal_to(302)
+        mock_start_async.called |should| equal_to(True)
+        exp = Experiment.objects.get(sequence_name='QuickProt')
+        response.url |should| equal_to(f'/experiments/{exp.uuid}/')
+
+    @patch('experiments.views.start_experiment_async')
+    def test_create_experiment_step_mode_redirects_to_template_select(self, mock_start_async):
+        payload = {
+            'title': 'Step Parameter Mode Test',
+            'sequence_type': 'PIR',
+            'pipeline_mode': 'STEP',
+            'sequence_text': '>P1;StepProt\nsequence:StepProt:::::::0.00: 0.00\nMSEAAHVLITGAAGQIGYIL*\n',
+        }
+        response = self.client.post('/experiments/new/', data=payload)
+        response.status_code |should| equal_to(302)
+        mock_start_async.called |should| equal_to(True)
+        exp = Experiment.objects.get(sequence_name='StepProt')
+        response.url |should| equal_to(f'/experiments/{exp.uuid}/select-template/')
+
+    @patch('experiments.views.start_model_building_async')
+    def test_template_select_flow_and_submission(self, mock_build_async):
+        exp = Experiment.objects.create(
+            title="Interactive Selection Test",
+            sequence_name="SelectProt",
+            sequence_text="MSEAAHVLITGAAGQIGYIL*",
+            pipeline_mode="STEP",
+            status="AWAITING_TEMPLATE",
+            current_step="Aguardando seleção do molde homólogo"
+        )
+        cand1 = TemplateCandidate.objects.create(experiment=exp, code="1bdm", chain="A", identity=45.2, is_selected=True)
+        cand2 = TemplateCandidate.objects.create(experiment=exp, code="1smk", chain="A", identity=38.1, is_selected=False)
+
+        # GET da página de seleção
+        get_res = self.client.get(f'/experiments/{exp.uuid}/select-template/')
+        get_res.status_code |should| equal_to(200)
+        len(get_res.context['candidates']) |should| equal_to(2)
+
+        # POST confirmando seleção
+        post_payload = {
+            'template_code': '1smk',
+            'template_chain': 'A',
+            'num_models': 6,
+            'enable_loop_refinement': True,
+            'loop_start': 15,
+            'loop_end': 25,
+        }
+        post_res = self.client.post(f'/experiments/{exp.uuid}/select-template/', data=post_payload)
+        post_res.status_code |should| equal_to(302)
+        post_res.url |should| equal_to(f'/experiments/{exp.uuid}/')
+        mock_build_async.called |should| equal_to(True)
+
+        exp.refresh_from_db()
+        exp.selected_template |should| equal_to('1SMK')
+        exp.num_models |should| equal_to(6)
+        exp.enable_loop_refinement |should| equal_to(True)
+        exp.loop_start |should| equal_to(15)
+        exp.loop_end |should| equal_to(25)
+
+    def test_alignment_data_and_status_api(self):
+        from django.core.files.base import ContentFile
+        from experiments.services import get_alignment_data
+
+        exp = Experiment.objects.create(
+            title="Alignment Test",
+            sequence_name="AlignProt",
+            sequence_text="MSEAAHVLITGAAGQIGYIL*",
+            status="RUNNING",
+            selected_template="1BDM"
+        )
+        sample_pap = "_aln.pos 10 20\nTarget MSEAAH\n1BDM   M-EAAH\n_consrvd * ****"
+        sample_pir = ">P1;AlignProt\nsequence:AlignProt:::::::0.00: 0.00\nMSEAAH*\n>P1;1BDM\nstructureX:1BDM:0:A:+10:A::::\nM-EAAH*\n"
+
+        exp.alignment_pap.save('test_ali.pap', ContentFile(sample_pap.encode('utf-8')))
+        exp.alignment_pir.save('test_ali.ali', ContentFile(sample_pir.encode('utf-8')))
+        exp.save()
+
+        data = get_alignment_data(exp)
+        data['has_alignment'] |should| equal_to(True)
+        data['conserved_count'] |should| equal_to(5)
+        data['pap_text'] |should| include('_aln.pos')
+
+        # API de status
+        res = self.client.get(f'/experiments/{exp.uuid}/status/')
+        res.status_code |should| equal_to(200)
+        json_data = res.json()
+        json_data['alignment_data']['has_alignment'] |should| equal_to(True)
+        json_data['alignment_data']['conserved_count'] |should| equal_to(5)
+        json_data['selected_template'] |should| equal_to('1BDM')
+
 
 if __name__ == '__main__':
     unittest.main()
+

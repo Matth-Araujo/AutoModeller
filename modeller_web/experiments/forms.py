@@ -18,6 +18,19 @@ class ExperimentCreateForm(forms.ModelForm):
         label="Sequence File (.pir, .fasta, .txt)",
         help_text="Select a file or paste sequence text below."
     )
+    pipeline_mode = forms.ChoiceField(
+        choices=Experiment.PIPELINE_MODES,
+        initial='AUTO',
+        required=False,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'})
+    )
+    num_models = forms.IntegerField(
+        initial=5,
+        required=False,
+        min_value=1,
+        max_value=10,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 10})
+    )
 
     class Meta:
         model = Experiment
@@ -26,6 +39,11 @@ class ExperimentCreateForm(forms.ModelForm):
             'description',
             'sequence_type',
             'sequence_text',
+            'pipeline_mode',
+            'num_models',
+            'enable_loop_refinement',
+            'loop_start',
+            'loop_end',
         ]
         widgets = {
             'description': forms.Textarea(attrs={
@@ -35,6 +53,27 @@ class ExperimentCreateForm(forms.ModelForm):
             }),
             'sequence_type': forms.Select(attrs={
                 'class': 'form-select'
+            }),
+            'pipeline_mode': forms.RadioSelect(attrs={
+                'class': 'form-check-input'
+            }),
+            'num_models': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 10,
+                'value': 5,
+            }),
+            'enable_loop_refinement': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'id': 'id_enable_loop_refinement'
+            }),
+            'loop_start': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'ex: 20'
+            }),
+            'loop_end': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'ex: 35'
             }),
             'sequence_text': forms.Textarea(attrs={
                 'class': 'form-control font-monospace',
@@ -95,16 +134,81 @@ class ExperimentCreateForm(forms.ModelForm):
         if not title:
             cleaned_data['title'] = f"Modeling {seq_name}"
 
+        if not cleaned_data.get('pipeline_mode'):
+            cleaned_data['pipeline_mode'] = 'AUTO'
+        if not cleaned_data.get('num_models'):
+            cleaned_data['num_models'] = 5
+
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
         instance.sequence_name = self.cleaned_data.get('sequence_name', 'TargetProt')
         instance.title = self.cleaned_data.get('title') or f"Modeling {instance.sequence_name}"
-        instance.enable_loop_refinement = False
+        instance.pipeline_mode = self.cleaned_data.get('pipeline_mode') or 'AUTO'
+        instance.num_models = self.cleaned_data.get('num_models') or 5
         if commit:
             instance.save()
         return instance
+
+
+class TemplateSelectForm(forms.Form):
+    """Formulário para confirmação e seleção do molde homólogo e parâmetros."""
+    template_code = forms.CharField(
+        max_length=50,
+        required=False,
+        widget=forms.HiddenInput()
+    )
+    template_chain = forms.CharField(
+        max_length=10,
+        required=False,
+        initial='A',
+        widget=forms.HiddenInput()
+    )
+    custom_pdb = forms.CharField(
+        max_length=10,
+        required=False,
+        label="Ou informe outro código PDB",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control font-monospace',
+            'placeholder': 'ex: 1bdm ou 1crn'
+        })
+    )
+    custom_chain = forms.CharField(
+        max_length=5,
+        required=False,
+        initial='A',
+        label="Cadeia",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control font-monospace',
+            'placeholder': 'A'
+        })
+    )
+    num_models = forms.IntegerField(
+        min_value=1,
+        max_value=10,
+        initial=5,
+        required=False,
+        label="Número de Modelos 3D",
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'min': 1,
+            'max': 10
+        })
+    )
+    enable_loop_refinement = forms.BooleanField(
+        required=False,
+        label="Refinamento de Loop",
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    loop_start = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Início'})
+    )
+    loop_end = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Fim'})
+    )
 
 
 class RegisterForm(UserCreationForm):

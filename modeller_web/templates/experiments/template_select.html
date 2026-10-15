@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if is_pt %}Selecionar Template - {{ experiment.sequence_name }} - AutoModeller WEB{% else %}Select Template - {{ experiment.sequence_name }} - AutoModeller WEB{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Breadcrumb / Etapas -->
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb small">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'experiment_list' %}">{% if is_pt %}Experimentos{% else %}Experiments{% endif %}</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{% if is_pt %}Seleção de Template{% else %}Template Selection{% endif %}</li>
+            </ol>
+        </nav>
+
+        <!-- Card de Estado de Busca em Andamento (se ainda estiver rodando o FindTemplatesStep) -->
+        <div id="search-in-progress-card" class="card shadow-sm border-primary border-opacity-50 mb-4 {% if experiment.status == 'AWAITING_TEMPLATE' or candidates.exists %}d-none{% endif %}">
+            <div class="card-body p-5 text-center">
+                <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;" role="status"></div>
+                <h4 class="fw-bold mb-2">
+                    {% if is_pt %}Buscando moldes homólogos no banco de dados estrutural...{% else %}Searching homologous templates in structural database...{% endif %}
+                </h4>
+                <p class="text-muted mb-3" id="search-step-label">
+                    {{ experiment.current_step }}
+                </p>
+                <div class="progress mb-2" style="height: 10px; max-width: 400px; margin: 0 auto;">
+                    <div id="search-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                         style="width: {{ experiment.progress_percent }}%;"></div>
+                </div>
+                <small class="text-muted">
+                    {% if is_pt %}
+                        Varrendo a base não-redundante <strong>pdb_95</strong> via <code>FindTemplatesStep</code>. Isso leva apenas alguns segundos.
+                    {% else %}
+                        Scanning non-redundant database <strong>pdb_95</strong> via <code>FindTemplatesStep</code>. This takes a few seconds.
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+
+        <!-- Formulário de Seleção de Template -->
+        <div id="template-selection-card" class="card shadow-sm border-0 {% if experiment.status != 'AWAITING_TEMPLATE' and not candidates.exists %}d-none{% endif %}">
+            <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom">
+                <div>
+                    <h4 class="fw-bold mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-search text-primary"></i>
+                        <span>{% if is_pt %}Seleção de Molde Homólogo (Template){% else %}Homologous Template Selection{% endif %}</span>
+                    </h4>
+                    <p class="text-muted small mb-0 mt-1">
+                        {% if is_pt %}
+                            Proteína Alvo: <code class="fw-bold">{{ experiment.sequence_name }}</code> &bull; Escolha o molde estrutural para guiar a modelagem 3D.
+                        {% else %}
+                            Target Protein: <code class="fw-bold">{{ experiment.sequence_name }}</code> &bull; Choose the structural template to guide 3D modeling.
+                        {% endif %}
+                    </p>
+                </div>
+                <span class="badge bg-warning text-dark border px-3 py-2 fs-7">
+                    <i class="bi bi-hourglass-split me-1"></i>
+                    {% if is_pt %}Aguardando Escolha do Pesquisador{% else %}Awaiting Your Selection{% endif %}
+                </span>
+            </div>
+
+            <div class="card-body p-4">
+                <form method="post" id="form-select-template">
+                    {% csrf_token %}
+                    {{ form.template_code }}
+                    {{ form.template_chain }}
+
+                    <div class="alert alert-info d-flex align-items-start gap-2 mb-4">
+                        <i class="bi bi-info-circle-fill fs-5 mt-1 text-primary"></i>
+                        <div class="small">
+                            {% if is_pt %}
+                                Foram identificados <strong>{{ candidates.count }} moldes homólogos</strong> compatíveis no banco <strong>pdb_95</strong>. O molde com maior identidade de sequência foi pré-selecionado automaticamente. Você pode escolher outro molde da lista ou informar um código PDB customizado.
+                            {% else %}
+                                <strong>{{ candidates.count }} homologous templates</strong> were identified in <strong>pdb_95</strong>. The template with highest sequence identity has been pre-selected. You can select another candidate from the list or enter a custom PDB ID.
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Tabela de Candidatos -->
+                    <div class="table-responsive border rounded-3 mb-4">
+                        <table class="table table-hover align-middle mb-0" id="table-candidates">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 48px;" class="text-center">#</th>
+                                    <th>{% if is_pt %}Código PDB / Molde{% else %}PDB Template Code{% endif %}</th>
+                                    <th>{% if is_pt %}Cadeia{% else %}Chain{% endif %}</th>
+                                    <th style="width: 35%;">{% if is_pt %}Identidade de Sequência{% else %}Sequence Identity{% endif %}</th>
+                                    <th>{% if is_pt %}Inspeção PDB{% else %}PDB Inspection{% endif %}</th>
+                                    <th class="text-end">{% if is_pt %}Seleção{% else %}Selection{% endif %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cand in candidates %}
+                                <tr class="cand-row cursor-pointer {% if forloop.first %}table-primary bg-opacity-25{% endif %}" 
+                                    data-code="{{ cand.code }}" data-chain="{{ cand.chain }}" onclick="selectRow('{{ cand.code }}', '{{ cand.chain }}', this)">
+                                    <td class="text-center">
+                                        <input class="form-check-input cand-radio" type="radio" name="selected_candidate" 
+                                               id="radio-cand-{{ forloop.counter }}" value="{{ cand.code }}" 
+                                               data-chain="{{ cand.chain }}" {% if forloop.first %}checked{% endif %}>
+                                    </td>
+                                    <td>
+                                        <code class="fs-6 fw-bold text-primary">{{ cand.code }}</code>
+                                        {% if forloop.first %}
+                                            <span class="badge bg-success ms-1 small">{% if is_pt %}Melhor Score{% else %}Top Match{% endif %}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary-subtle text-secondary border font-monospace">{{ cand.chain }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-semibold small" style="width: 50px;">{{ cand.identity|floatformat:1 }}%</span>
+                                            <div class="progress flex-grow-1" style="height: 8px;">
+                                                <div class="progress-bar {% if cand.identity >= 40 %}bg-success{% elif cand.identity >= 25 %}bg-primary{% else %}bg-warning{% endif %}" 
+                                                     role="progressbar" style="width: {{ cand.identity }}%;" 
+                                                     aria-valuenow="{{ cand.identity }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="https://www.rcsb.org/structure/{{ cand.code|slice:':4' }}" target="_blank" rel="noopener noreferrer" 
+                                           class="btn btn-sm btn-outline-info" onclick="event.stopPropagation();" title="Ver estrutura no RCSB PDB">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i> RCSB PDB
+                                        </a>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary select-btn" onclick="selectRow('{{ cand.code }}', '{{ cand.chain }}', this.closest('tr'))">
+                                            <i class="bi bi-check2"></i> {% if is_pt %}Escolher{% else %}Choose{% endif %}
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        {% if is_pt %}Nenhum molde homólogo foi encontrado automaticamente.{% else %}No homologous templates found automatically.{% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Opção de Molde Alternativo / Customizado -->
+                    <div class="card border bg-light mb-4 p-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="check-use-custom" onchange="toggleCustomPdb(this)">
+                            <label class="form-check-label fw-semibold text-dark" for="check-use-custom">
+                                {% if is_pt %}Desejo especificar outro código PDB manualmente{% else %}I want to manually specify a different PDB code{% endif %}
+                            </label>
+                        </div>
+                        <div class="row g-2 d-none" id="custom-pdb-container">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">{% if is_pt %}Código PDB Molde (4 caracteres){% else %}PDB Template ID (4 characters){% endif %}</label>
+                                {{ form.custom_pdb }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">{% if is_pt %}Cadeia Alvo no PDB{% else %}Chain ID in PDB{% endif %}</label>
+                                {{ form.custom_chain }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Revisão e Ajuste de Parâmetros -->
+                    <div class="card border mb-4 p-3">
+                        <h6 class="fw-bold mb-3 text-primary d-flex align-items-center">
+                            <i class="bi bi-sliders me-2"></i>
+                            {% if is_pt %}Parâmetros de Construção dos Modelos 3D{% else %}3D Model Building Parameters{% endif %}
+                        </h6>
+                        <div class="row g-3 align-items-center">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold small">
+                                    {% if is_pt %}Quantidade de Modelos 3D a Construir{% else %}Number of 3D Models to Build{% endif %}
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="bi bi-boxes"></i></span>
+                                    {{ form.num_models }}
+                                </div>
+                                <div class="form-text small">
+                                    {% if is_pt %}O Modeller construirá esta quantidade e elegerá o de menor DOPE Score.{% else %}Modeller will build this quantity and pick the best DOPE model.{% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check form-switch pt-3">
+                                    {{ form.enable_loop_refinement }}
+                                    <label class="form-check-label fw-semibold small" for="id_enable_loop_refinement">
+                                        {% if is_pt %}Habilitar Refinamento de Loop{% else %}Enable Loop Refinement{% endif %}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12 d-none" id="loop-range-container">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted">{% if is_pt %}Resíduo Inicial do Loop{% else %}Loop Start Residue{% endif %}</label>
+                                        {{ form.loop_start }}
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small text-muted">{% if is_pt %}Resíduo Final do Loop{% else %}Loop End Residue{% endif %}</label>
+                                        {{ form.loop_end }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'experiment_list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> {% if is_pt %}Voltar para Meus Experimentos{% else %}Back to Experiments{% endif %}
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg px-4 shadow-sm" id="btn-confirm-template">
+                            <i class="bi bi-cpu-fill me-2"></i>
+                            <span id="label-confirm-btn">
+                                {% if is_pt %}Confirmar Template e Gerar Modelo 3D{% else %}Confirm Template & Build 3D Model{% endif %}
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const expUuid = "{{ experiment.uuid }}";
+    let isSearching = "{{ experiment.status }}" !== "AWAITING_TEMPLATE" && document.getElementById('table-candidates').querySelectorAll('tbody tr.cand-row').length === 0;
+
+    function selectRow(code, chain, trElement) {
+        document.getElementById('id_template_code').value = code;
+        document.getElementById('id_template_chain').value = chain;
+
+        document.querySelectorAll('.cand-row').forEach(row => {
+            row.classList.remove('table-primary', 'bg-opacity-25');
+            const radio = row.querySelector('.cand-radio');
+            if (radio) radio.checked = false;
+        });
+
+        if (trElement) {
+            trElement.classList.add('table-primary', 'bg-opacity-25');
+            const radio = trElement.querySelector('.cand-radio');
+            if (radio) radio.checked = true;
+        }
+
+        // Desmarca custom PDB se marcou da tabela
+        const customCheck = document.getElementById('check-use-custom');
+        if (customCheck && customCheck.checked) {
+            customCheck.checked = false;
+            toggleCustomPdb(customCheck);
+        }
+    }
+
+    function toggleCustomPdb(checkbox) {
+        const container = document.getElementById('custom-pdb-container');
+        if (checkbox.checked) {
+            container.classList.remove('d-none');
+            // Desmarca tabela
+            document.querySelectorAll('.cand-radio').forEach(r => r.checked = false);
+            document.querySelectorAll('.cand-row').forEach(row => row.classList.remove('table-primary', 'bg-opacity-25'));
+        } else {
+            container.classList.add('d-none');
+            // Restaura o primeiro da tabela
+            const firstRow = document.querySelector('.cand-row');
+            if (firstRow) {
+                const code = firstRow.getAttribute('data-code');
+                const chain = firstRow.getAttribute('data-chain');
+                selectRow(code, chain, firstRow);
+            }
+        }
+    }
+
+    // Polling caso tenha entrado na tela enquanto o FindTemplatesStep ainda está processando
+    function pollTemplateSearch() {
+        if (!isSearching) return;
+
+        fetch(`/experiments/${expUuid}/status/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'AWAITING_TEMPLATE' || (data.candidates && data.candidates.length > 0)) {
+                    // Busca concluída! Recarrega a página para preencher a tabela de templates
+                    window.location.reload();
+                } else if (data.status === 'FAILED') {
+                    window.location.href = `/experiments/${expUuid}/`;
+                } else {
+                    const stepLabel = document.getElementById('search-step-label');
+                    const pBar = document.getElementById('search-progress-bar');
+                    if (stepLabel) stepLabel.textContent = data.current_step;
+                    if (pBar) pBar.style.width = (data.progress_percent || 15) + '%';
+                    setTimeout(pollTemplateSearch, 2000);
+                }
+            })
+            .catch(err => {
+                console.error("Polling error:", err);
+                setTimeout(pollTemplateSearch, 3000);
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Inicializa o primeiro template selecionado
+        const firstRow = document.querySelector('.cand-row');
+        if (firstRow) {
+            const code = firstRow.getAttribute('data-code');
+            const chain = firstRow.getAttribute('data-chain');
+            selectRow(code, chain, firstRow);
+        }
+
+        const loopCheck = document.getElementById('id_enable_loop_refinement');
+        const loopRange = document.getElementById('loop-range-container');
+        if (loopCheck && loopRange) {
+            const toggleLoop = () => {
+                if (loopCheck.checked) loopRange.classList.remove('d-none');
+                else loopRange.classList.add('d-none');
+            };
+            loopCheck.addEventListener('change', toggleLoop);
+            toggleLoop();
+        }
+
+        if (isSearching) {
+            pollTemplateSearch();
+        }
+    });
+</script>
+{% endblock %}

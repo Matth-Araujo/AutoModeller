@@ -357,7 +357,7 @@ O projeto foi totalmente adaptado para rodar em contêineres Docker, garantindo 
 O arquivo [`Dockerfile`](file:///home/matheus/IC/Projeto_modeller/Dockerfile) executa:
 1. Imagem base oficial leve: `python:3.11-slim`.
 2. Instalação de bibliotecas de sistema necessárias para o runtime científico (`libgfortran5`, `libglib2.0-0`, `ca-certificates`, `wget`).
-3. Download e instalação automática do pacote oficial do **Modeller 10.7** com a chave acadêmica padrão (`KEY_MODELLER="MODELIRANJE"`).
+3. Download e instalação automática do pacote oficial do **Modeller 10.7** com suporte a licença via argumento de build (`KEY_MODELLER`). Registre-se em https://salilab.org/modeller/registration.html para obter a sua chave gratuita.
 4. Configuração das variáveis de ambiente:
    - `PYTHONPATH="/usr/lib/modeller10.7/modlib:/app:${PYTHONPATH}"`
    - `PYTHONUNBUFFERED=1`

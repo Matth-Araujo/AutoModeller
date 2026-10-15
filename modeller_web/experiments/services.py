@@ -26,8 +26,10 @@ from smosh.ModelingTools.PDBFile import PDBFile
 from smosh.ModelingTools.AlignFile import AlignFile
 from smosh.Exceptions.ModellerException import ModellerException
 
-# Garante que a chave de licença oficial do Modeller (MODELIRANJE) e os caminhos estejam no ambiente
-os.environ.setdefault('KEY_MODELLER', getattr(settings, 'KEY_MODELLER', 'MODELIRANJE'))
+# Configura chave de licença do Modeller e caminhos nativos no ambiente
+modeller_key = os.environ.get('KEY_MODELLER') or getattr(settings, 'KEY_MODELLER', '')
+if modeller_key:
+    os.environ['KEY_MODELLER'] = modeller_key
 mod_install = os.environ.get('MODINSTALL10v7', '/usr/lib/modeller10.7')
 mod_lib = os.path.join(mod_install, 'lib', 'x86_64-intel8')
 mod_py33 = os.path.join(mod_lib, 'python3.3')
@@ -224,13 +226,61 @@ def run_pipeline(experiment_id):
 
         chain = best_template_code[-1] if len(best_template_code) >= 5 else 'A'
         experiment.template_chain = chain
-        experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] Template selecionado: {best_template_code} (Cadeia: {chain})\n"
+
+        if experiment.pipeline_mode == 'STEP':
+            # Modo com Parâmetros / Passo a Passo:
+            # Pausa para o pesquisador visualizar e selecionar o template na tela dedicada!
+            experiment.status = 'AWAITING_TEMPLATE'
+            experiment.current_step = 'Busca concluída. Aguardando seleção de molde'
+            experiment.progress_percent = 25
+            experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] {len(valid_candidates)} molde(s) homólogo(s) encontrado(s). Aguardando escolha do pesquisador.\n"
+            experiment.save()
+            return
+
+        # Modo AUTO (Modelagem Rápida): prossegue diretamente para a construção
+        continue_model_building(experiment_id)
+
+    except ModellerException as me:
+        experiment.status = 'FAILED'
+        experiment.current_step = 'Falha na execução do Modeller'
+        experiment.error_message = f"ModellerException: {me.log}"
+        experiment.log_output += f"\n[{timezone.now().strftime('%H:%M:%S')}] ERRO DO MODELLER:\n{me.log}\n"
+        experiment.save()
+    except Exception as e:
+        experiment.status = 'FAILED'
+        experiment.current_step = f'Erro: {str(e)}'
+        experiment.error_message = str(e)
+        experiment.log_output += f"\n[{timezone.now().strftime('%H:%M:%S')}] ERRO INESPERADO:\n{str(e)}\n"
+        experiment.save()
+
+
+def continue_model_building(experiment_id):
+    """
+    Segunda fase da pipeline: a partir do template selecionado (manual ou automático),
+    baixa a estrutura PDB, limpa heteroátomos, alinha as sequências (AlignStep),
+    constrói os modelos 3D (BuildModelStep) e calcula os perfis de energia DOPE.
+    """
+    experiment = Experiment.objects.get(id=experiment_id)
+    experiment.status = 'RUNNING'
+    experiment.save()
+
+    workdir = os.path.join(settings.MEDIA_ROOT, 'workspaces', str(experiment.uuid))
+    os.makedirs(workdir, exist_ok=True)
+    seq_name = experiment.sequence_name.strip() or "target"
+    ext = "pir" if experiment.sequence_type == "PIR" else "fasta"
+    seq_file_path = os.path.join(workdir, f"{seq_name}.{ext}")
+
+    try:
+        best_template_code = experiment.selected_template.strip()
+        chain = experiment.template_chain or (best_template_code[-1] if len(best_template_code) >= 5 else 'A')
+        experiment.template_chain = chain
+
+        experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] Iniciando construção com template: {best_template_code} (Cadeia: {chain})\n"
         experiment.current_step = f'Baixando e tratando PDB ({best_template_code})'
         experiment.progress_percent = 30
         experiment.save()
 
         # ETAPA 3: Obter PDB do molde (RCSB ou local)
-        # Verifica se o PDB já existe nos arquivos de teste do smosh
         smosh_base = os.path.join(settings.SMOSH_PARENT_DIR, 'smosh', 'files')
         pdb_id_short = best_template_code[:4].lower()
         local_pdb_sample = os.path.join(smosh_base, f"{pdb_id_short}.pdb")
@@ -287,19 +337,19 @@ def run_pipeline(experiment_id):
             with open(pap_path, 'rb') as f:
                 experiment.alignment_pap.save('ali.pap', ContentFile(f.read()), save=False)
 
-        experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] Alinhamento concluído com sucesso.\n"
-        experiment.current_step = 'Construindo modelos 3D com Modeller (BuildModelStep)'
+        num_models = experiment.num_models or 5
+        experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] Alinhamento 2D concluído com sucesso.\n"
+        experiment.current_step = f'Construindo {num_models} modelos 3D com Modeller (BuildModelStep)'
         experiment.progress_percent = 65
         experiment.save()
 
         # ETAPA 7: Construir modelos 3D com Modeller Automodel
-        modeling_manager = BuildModelStep(ali_path, downloaded_pdb_path)
+        modeling_manager = BuildModelStep(ali_path, downloaded_pdb_path, ending_model=num_models)
         modeling_manager.execute()
 
         # Coletar modelos PDB gerados
         pdb_files = [f for f in os.listdir(workdir) if f.startswith(seq_name + '.B') and f.endswith('.pdb')]
         if not pdb_files:
-            # Tenta pegar qualquer .B*.pdb
             pdb_files = [f for f in os.listdir(workdir) if '.B9999' in f and f.endswith('.pdb')]
 
         best_model_path = None
@@ -441,3 +491,58 @@ def start_experiment_async(experiment_id):
     t = threading.Thread(target=run_pipeline, args=(experiment_id,), daemon=True)
     t.start()
     return t
+
+
+def start_model_building_async(experiment_id):
+    """Dispara a continuação da modelagem (após escolha do template) em segundo plano."""
+    t = threading.Thread(target=continue_model_building, args=(experiment_id,), daemon=True)
+    t.start()
+    return t
+
+
+def get_alignment_data(experiment):
+    """
+    Retorna os textos dos alinhamentos PAP e PIR e dados estatísticos do alinhamento 2D.
+    """
+    pap_text = ""
+    pir_text = ""
+    workdir = os.path.join(settings.MEDIA_ROOT, 'workspaces', str(experiment.uuid))
+
+    # Tenta ler de alignment_pap ou do workdir
+    if experiment.alignment_pap:
+        try:
+            with experiment.alignment_pap.open('r') as f:
+                pap_text = f.read()
+                if isinstance(pap_text, bytes):
+                    pap_text = pap_text.decode('utf-8', errors='ignore')
+        except Exception:
+            pass
+    if not pap_text and os.path.exists(os.path.join(workdir, 'ali.pap')):
+        try:
+            with open(os.path.join(workdir, 'ali.pap'), 'r', encoding='utf-8', errors='ignore') as f:
+                pap_text = f.read()
+        except Exception:
+            pass
+
+    if experiment.alignment_pir:
+        try:
+            with experiment.alignment_pir.open('r') as f:
+                pir_text = f.read()
+                if isinstance(pir_text, bytes):
+                    pir_text = pir_text.decode('utf-8', errors='ignore')
+        except Exception:
+            pass
+    if not pir_text and os.path.exists(os.path.join(workdir, 'ali.ali')):
+        try:
+            with open(os.path.join(workdir, 'ali.ali'), 'r', encoding='utf-8', errors='ignore') as f:
+                pir_text = f.read()
+        except Exception:
+            pass
+
+    conserved_count = pap_text.count('*') if pap_text else 0
+    return {
+        'pap_text': pap_text,
+        'pir_text': pir_text,
+        'has_alignment': bool(pap_text or pir_text),
+        'conserved_count': conserved_count,
+    }
