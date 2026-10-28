@@ -26,6 +26,12 @@
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-body);
+            background-image: linear-gradient(180deg, rgba(248, 250, 252, 0.35) 0%, rgba(248, 250, 252, 0.45) 100%),
+                              url("{% static 'images/bg_molecular_light.webp' %}");
+            background-size: cover;
+            background-position: center center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
             color: #1e293b;
             min-height: 100vh;
             display: flex;
@@ -40,9 +46,11 @@
             font-size: 0.9rem;
         }
         .card {
+            background-color: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(6px);
             border: 1px solid var(--card-border);
             border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
         }
         .card-header {
             background-color: #ffffff;
@@ -237,13 +245,79 @@
                             Automated tests with <strong>should_dsl</strong>.
                         {% endif %}
                     </div>
+                    <div class="mt-2 d-flex flex-wrap gap-3 justify-content-center justify-content-md-end">
+                        <a href="{% url 'privacy_policy' %}" class="text-decoration-none text-info-emphasis link-light opacity-75">
+                            <i class="bi bi-shield-lock me-1"></i>{% if is_pt %}Política de Privacidade{% else %}Privacy Policy{% endif %}
+                        </a>
+                        <a href="{% url 'cookie_policy' %}" class="text-decoration-none text-info-emphasis link-light opacity-75">
+                            <i class="bi bi-cookie me-1"></i>{% if is_pt %}Política de Cookies{% else %}Cookie Policy{% endif %}
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </footer>
 
+    <!-- Banner de Consentimento de Cookies Essenciais (LGPD / GDPR) -->
+    <div id="cookie-consent-banner" class="position-fixed bottom-0 start-0 end-0 p-3 d-none" style="z-index: 1080;">
+        <div class="container">
+            <div class="card border-primary border-opacity-25 shadow-lg bg-dark text-white">
+                <div class="card-body py-3 px-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div class="small">
+                        <i class="bi bi-shield-check text-info me-2 fs-6"></i>
+                        {% if is_pt %}
+                            Utilizamos <strong>apenas cookies essenciais e de segurança</strong> (<code>sessionid</code>, <code>csrftoken</code> e idioma) para manter seus experimentos 3D ativos e proteger o site contra ataques CSRF. Não utilizamos cookies de rastreamento publicitário. Consulte nossa
+                            <a href="{% url 'privacy_policy' %}" class="text-info text-decoration-underline">Política de Privacidade</a> e
+                            <a href="{% url 'cookie_policy' %}" class="text-info text-decoration-underline">Política de Cookies</a>.
+                        {% else %}
+                            We use <strong>strictly necessary and security cookies only</strong> (<code>sessionid</code>, <code>csrftoken</code>, and language) to keep your 3D modeling session active and protect against CSRF attacks. No third-party tracking cookies are used. Read our
+                            <a href="{% url 'privacy_policy' %}" class="text-info text-decoration-underline">Privacy Policy</a> and
+                            <a href="{% url 'cookie_policy' %}" class="text-info text-decoration-underline">Cookie Policy</a>.
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2 flex-shrink-0">
+                        <a href="{% url 'cookie_policy' %}" class="btn btn-outline-light btn-sm">
+                            {% if is_pt %}Detalhes{% else %}Details{% endif %}
+                        </a>
+                        <button type="button" id="btn-accept-cookies" class="btn btn-primary btn-sm fw-semibold px-3">
+                            <i class="bi bi-check2-circle me-1"></i>{% if is_pt %}Entendi e Aceitar{% else %}Accept & Close{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        (function() {
+            const CONSENT_KEY = 'automodeller_cookie_consent';
+            const banner = document.getElementById('cookie-consent-banner');
+            const acceptBtn = document.getElementById('btn-accept-cookies');
+            if (!banner) return;
+
+            const hasCookie = document.cookie.split(';').some(c => c.trim().startsWith(CONSENT_KEY + '='));
+            let hasStorage = false;
+            try {
+                hasStorage = localStorage.getItem(CONSENT_KEY) === 'accepted';
+            } catch (e) {}
+
+            if (!hasCookie && !hasStorage) {
+                banner.classList.remove('d-none');
+            }
+
+            if (acceptBtn) {
+                acceptBtn.addEventListener('click', function() {
+                    try {
+                        localStorage.setItem(CONSENT_KEY, 'accepted');
+                    } catch (e) {}
+                    document.cookie = CONSENT_KEY + '=accepted; max-age=' + (365 * 24 * 60 * 60) + '; path=/; SameSite=Lax';
+                    banner.classList.add('d-none');
+                });
+            }
+        })();
+    </script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>

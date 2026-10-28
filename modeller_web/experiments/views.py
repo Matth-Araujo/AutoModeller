@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_GET, require_POST
 from django.conf import settings
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .models import Experiment, ExperimentResultModel, TemplateCandidate
 from .forms import ExperimentCreateForm, TemplateSelectForm, RegisterForm
@@ -17,7 +18,7 @@ from .services import (
     get_alignment_data,
     create_experiment_zip,
 )
-from .featured import get_daily_featured_structures
+from .featured import get_daily_featured_structures, get_featured_structure_initial_data
 
 SAMPLE_TVLDH_PIR = """>P1;TvLDH
 sequence:TvLDH:::::::0.00: 0.00
@@ -83,9 +84,10 @@ def experiment_create(request):
     """Cria um novo experimento (suporta usuário autenticado e anônimo/avulso)."""
     session_key = _ensure_session_key(request)
     use_sample = request.GET.get('sample') == '1'
+    struct_id = request.GET.get('structure', '').strip()
 
     initial_data = {}
-    if use_sample:
+    if use_sample or struct_id.lower() == 'tvldh':
         # Puxa o exemplo real do smosh se existir
         sample_path = os.path.join(settings.SMOSH_PARENT_DIR, 'smosh', 'files', 'TvLDH.pir')
         if os.path.exists(sample_path):
@@ -101,6 +103,10 @@ def experiment_create(request):
         else:
             initial_data['title'] = 'TvLDH Example Experiment (Lactate Dehydrogenase)'
             initial_data['description'] = 'Full automated 3D comparative modeling demonstration using TvLDH.'
+    elif struct_id:
+        featured_init = get_featured_structure_initial_data(struct_id, is_pt=_is_pt(request))
+        if featured_init:
+            initial_data.update(featured_init)
 
     if request.method == 'POST':
         form = ExperimentCreateForm(request.POST, request.FILES)
@@ -345,9 +351,10 @@ def experiment_download_zip(request, uuid):
     """Gera e faz o download de um pacote ZIP com todos os arquivos gerados."""
     experiment = get_object_or_404(Experiment, uuid=uuid)
     zip_rel_path = create_experiment_zip(experiment)
-    zip_abs_path = os.path.join(settings.MEDIA_ROOT, zip_rel_path)
+    media_root_real = os.path.realpath(settings.MEDIA_ROOT)
+    zip_abs_path = os.path.realpath(os.path.join(media_root_real, zip_rel_path))
 
-    if not os.path.exists(zip_abs_path):
+    if not zip_abs_path.startswith(media_root_real + os.sep) or not os.path.exists(zip_abs_path):
         raise Http404("Arquivo ZIP não encontrado.")
 
     return FileResponse(
@@ -388,14 +395,41 @@ def register_view(request):
 
 
 def set_language_custom(request):
-    """Alterna o idioma entre inglês (en) e português (pt)."""
+    """Alterna o idioma entre inglês (en) e português (pt) com validação contra Open Redirect."""
     lang = request.GET.get('lang', 'en')
     if lang not in ('en', 'pt'):
         lang = 'en'
     request.session['site_lang'] = lang
     next_url = request.GET.get('next') or request.META.get('HTTP_REFERER') or '/'
-    if not next_url.startswith('/'):
+    if not url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
         next_url = '/'
     response = redirect(next_url)
-    response.set_cookie('site_lang', lang, max_age=365*24*60*60)
+    response.set_cookie(
+        'site_lang',
+        lang,
+        max_age=365 * 24 * 60 * 60,
+        httponly=True,
+        samesite='Lax',
+        secure=request.is_secure(),
+    )
     return response
+
+
+@require_GET
+def privacy_policy(request):
+    """Página da Política de Privacidade e Proteção de Dados (LGPD / GDPR)."""
+    return render(request, 'experiments/privacy_policy.html', {
+        'is_pt': _is_pt(request),
+    })
+
+
+@require_GET
+def cookie_policy(request):
+    """Página da Política de Cookies e Armazenamento Local."""
+    return render(request, 'experiments/cookie_policy.html', {
+        'is_pt': _is_pt(request),
+    })

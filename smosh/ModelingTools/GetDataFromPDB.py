@@ -11,15 +11,18 @@ class GetDataFromPDB(object):
 
 	def getPDB_File(self):
 		# 1. Melhoria: Usar os.path.join para construir o caminho do arquivo
-		pdb_file_path = os.path.join(self.path, self.__onlyTemplateName__() + ".pdb")
-        
-		response = urllib.request.urlopen('http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=' + self.__onlyTemplateName__())
+		pdb_code = self.__onlyTemplateName__().lower()
+		pdb_file_path = os.path.join(self.path, pdb_code + ".pdb")
+
+		url = f"https://files.rcsb.org/download/{pdb_code}.pdb"
+		req = urllib.request.Request(url, headers={'User-Agent': 'AutoModeller/1.0'})
+		response = urllib.request.urlopen(req, timeout=30)
 		pdb_buffer = response.read() # pdb_buffer será bytes
-        
-        # 2. Correção: Usar 'wb' para escrever bytes e 'with' para fechamento seguro
+
+		# 2. Correção: Usar 'wb' para escrever bytes e 'with' para fechamento seguro
 		with open(pdb_file_path, "wb") as pdb_file:
 			pdb_file.write(pdb_buffer)
-            
+
 		return pdb_file_path
 
 	def get_PDB_FileFromDBorPDB(self,db_path):

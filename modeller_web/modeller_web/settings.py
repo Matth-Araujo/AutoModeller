@@ -36,12 +36,17 @@ if os.path.exists(env_file):
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-$lbtkw0k*yatraj$i+tov)7(2apyc=!pk2ll_2l1%p5^la8wx@'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-$lbtkw0k*yatraj$i+tov)7(2apyc=!pk2ll_2l1%p5^la8wx@'
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '*').split(',') if h.strip()
+]
 
 
 # Application definition
@@ -58,6 +63,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'experiments.security.SecurityHeadersAndRateLimitMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -159,6 +165,30 @@ AUTHENTICATION_BACKENDS = [
     'experiments.backends.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+# Configurações de Segurança de Sessão, Cookies, Upload e Proteção HTTP (OWASP)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 7 dias
+CSRF_COOKIE_HTTPONLY = False  # Mantido acessível caso formulários AJAX necessitem ler o token
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+X_FRAME_OPTIONS = 'DENY'
+
+# Limite máximo de upload e payload POST (2 MB) para proteção contra DoS de memória
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1', 'yes')
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # Configuração do ambiente Modeller (chave e caminhos das bibliotecas nativas C / Python)
 # Para obter sua licença acadêmica gratuita, registre-se em https://salilab.org/modeller/registration.html

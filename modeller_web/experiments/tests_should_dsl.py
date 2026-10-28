@@ -320,6 +320,87 @@ class ExperimentViewsShouldDslTests(TestCase):
         json_data['alignment_data']['conserved_count'] |should| equal_to(5)
         json_data['selected_template'] |should| equal_to('1BDM')
 
+    def test_featured_structure_prepopulates_experiment_form(self):
+        res = self.client.get('/experiments/new/?structure=1crn')
+        res.status_code |should| equal_to(200)
+        form = res.context['form']
+        form.initial['sequence_name'] |should| equal_to('1crn')
+        form.initial['sequence_text'] |should| include('>P1;1crn')
+        form.initial['sequence_text'] |should| include('TTCCPSIVARSNFNVCRLPGTPEAICATYT')
+
+    def test_privacy_and_cookie_policy_pages_and_security_headers(self):
+        res_privacy = self.client.get('/privacy/')
+        res_privacy.status_code |should| equal_to(200)
+        res_privacy.content.decode('utf-8') |should| include('LGPD')
+        res_privacy['X-Content-Type-Options'] |should| equal_to('nosniff')
+        res_privacy['X-Frame-Options'] |should| equal_to('DENY')
+        res_privacy['Content-Security-Policy'] |should| include("default-src 'self'")
+
+        res_cookies = self.client.get('/cookies/')
+        res_cookies.status_code |should| equal_to(200)
+        res_cookies.content.decode('utf-8') |should| include('csrftoken')
+        res_cookies.content.decode('utf-8') |should| include('sessionid')
+
+    def test_open_redirect_protection_in_set_language(self):
+        res = self.client.get('/set-language/?lang=pt&next=https://evil-attacker.example.com/phishing')
+        res.status_code |should| equal_to(302)
+        res.url |should| equal_to('/')
+
+        res_proto = self.client.get('/set-language/?lang=pt&next=//evil-attacker.example.com')
+        res_proto.status_code |should| equal_to(302)
+        res_proto.url |should| equal_to('/')
+
+    def test_security_upload_and_xss_sanitization(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        # Rejeita extensão maliciosa (.php)
+        bad_file = SimpleUploadedFile("shell.php", b"<?php system($_GET['cmd']); ?>")
+        form_bad = ExperimentCreateForm(data={'sequence_type': 'PIR'}, files={'sequence_file': bad_file})
+        form_bad.is_valid() |should| equal_to(False)
+
+        # Rejeita payload binário com null bytes disfarçado de .pir
+        bin_file = SimpleUploadedFile("malware.pir", b">P1;Test\x00\x00BINARY_PAYLOAD")
+        form_bin = ExperimentCreateForm(data={'sequence_type': 'PIR'}, files={'sequence_file': bin_file})
+        form_bin.is_valid() |should| equal_to(False)
+
+        # Remove tags XSS do título e descrição
+        form_xss = ExperimentCreateForm(data={
+            'title': '<script>alert(1)</script>Safe Title',
+            'description': '<img src=x onerror=alert(1)>Safe Desc',
+            'sequence_type': 'FASTA',
+            'sequence_text': '>MyProt\nMSEAAHVLITGAAGQIGYIL*\n',
+        })
+        form_xss.is_valid() |should| equal_to(True)
+        form_xss.cleaned_data['title'] |should| equal_to('alert(1)Safe Title')
+        form_xss.cleaned_data['description'] |should| equal_to('Safe Desc')
+
+    def test_admin_access_restricted_to_superuser_only(self):
+        # 1. Visitante anônimo é redirecionado para a tela de login do admin
+        res_anon = self.client.get('/admin/')
+        res_anon.status_code |should| equal_to(302)
+        res_anon.url |should| include('/admin/login/')
+
+        # 2. Usuário comum cadastrado no site NÃO tem acesso ao painel /admin/
+        normal_user = User.objects.create_user(
+            username='pesquisador_comum',
+            email='pesquisador@teste.com',
+            password='StrongPassword123!'
+        )
+        self.client.force_login(normal_user)
+        res_normal = self.client.get('/admin/')
+        res_normal.status_code |should| equal_to(302)
+        res_normal.url |should| include('/admin/login/')
+
+        # 3. Apenas Superusuário (is_staff=True, is_superuser=True) consegue acessar
+        admin_user = User.objects.create_superuser(
+            username='admin_master',
+            email='admin@automodeller.org',
+            password='SuperSecretAdminPass123!'
+        )
+        self.client.force_login(admin_user)
+        res_admin = self.client.get('/admin/')
+        res_admin.status_code |should| equal_to(200)
+
 
 if __name__ == '__main__':
     unittest.main()

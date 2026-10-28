@@ -19,9 +19,9 @@
             </span>
             <h1 class="display-5 fw-bold mb-3">
                 {% if is_pt %}
-                    Modelagem Molecular 3D Descomplicada
+                    Modelagem Molecular 3D
                 {% else %}
-                    Effortless 3D Molecular Modeling
+                    3D Molecular Modeling
                 {% endif %}
             </h1>
             <p class="lead mb-4 opacity-90">
@@ -338,6 +338,23 @@
     let autoAdvanceInterval = null;
     let isAutoPlaying = true;
     let shuffleOffset = 0;
+    let homeLoadToken = 0;
+    let homeRenderToken = 0;
+
+    const HOME_CHAIN_COLORS = {
+        'A': '#2563eb', 'B': '#dc2626', 'C': '#16a34a', 'D': '#d97706',
+        'E': '#9333ea', 'F': '#0891b2', 'G': '#db2777', 'H': '#4f46e5',
+        'I': '#059669', 'J': '#ea580c', 'K': '#7c3aed', 'L': '#0284c7',
+        'M': '#65a30d', 'N': '#0d9488', 'O': '#e11d48', 'P': '#7e22ce',
+        ' ': '#2563eb', '': '#2563eb'
+    };
+
+    const HOME_SS_COLORS = {
+        'h': '#e11d48',
+        's': '#eab308',
+        'c': '#22c55e',
+        '': '#22c55e'
+    };
 
     function initHomeViewer() {
         const element = document.getElementById('home-mol-viewer');
@@ -414,7 +431,7 @@
                 modelBtn.href = "{% url 'experiment_create' %}?sample=1";
                 modelLabel.textContent = isPt ? "Modelar Esta Estrutura" : "Model This Structure";
             } else {
-                modelBtn.href = "{% url 'experiment_create' %}";
+                modelBtn.href = `{% url 'experiment_create' %}?structure=${encodeURIComponent(st.id)}`;
                 modelLabel.textContent = isPt ? "Modelar no AutoModeller" : "Model in AutoModeller";
             }
         }
@@ -424,6 +441,10 @@
         const loading = document.getElementById('home-viewer-loading');
         if (loading) loading.classList.remove('d-none');
 
+        const loadToken = ++homeLoadToken;
+        homeViewer.removeAllSurfaces();
+        homeViewer.clear();
+
         // Tenta carregar o arquivo PDB local; caso não exista, baixa do RCSB diretamente
         fetch(st.pdbUrl)
             .then(res => {
@@ -431,6 +452,8 @@
                 return res.text();
             })
             .then(pdbData => {
+                if (loadToken !== homeLoadToken) return;
+                homeViewer.removeAllSurfaces();
                 homeViewer.clear();
                 homeViewer.addModel(pdbData, "pdb");
                 applyHomeStyle();
@@ -440,10 +463,13 @@
                 if (loading) loading.classList.add('d-none');
             })
             .catch(err => {
+                if (loadToken !== homeLoadToken) return;
                 console.warn("Falling back to RCSB download for:", st.id, err);
+                homeViewer.removeAllSurfaces();
                 homeViewer.clear();
                 const remoteId = st.id.replace(/\.pdb$/i, '');
                 $3Dmol.download(`pdb:${remoteId}`, homeViewer, {}, function() {
+                    if (loadToken !== homeLoadToken) return;
                     applyHomeStyle();
                     homeViewer.zoomTo();
                     homeViewer.render();
@@ -479,18 +505,60 @@
             });
     }
 
+    function buildHomeColorSpec(viewer, colorMode, forStyle) {
+        if (colorMode === 'spectrum') {
+            if (forStyle === 'cartoon') {
+                return { color: 'spectrum' };
+            }
+            const atoms = viewer.selectedAtoms({});
+            let minResi = Infinity;
+            let maxResi = -Infinity;
+            for (let i = 0; i < atoms.length; i++) {
+                const r = atoms[i].resi;
+                if (typeof r === 'number' && !isNaN(r)) {
+                    if (r < minResi) minResi = r;
+                    if (r > maxResi) maxResi = r;
+                }
+            }
+            if (!isFinite(minResi) || !isFinite(maxResi) || minResi === maxResi) {
+                minResi = 1;
+                maxResi = 350;
+            }
+            return {
+                colorscheme: {
+                    prop: 'resi',
+                    gradient: 'roygb',
+                    min: minResi,
+                    max: maxResi
+                }
+            };
+        } else if (colorMode === 'ssPyMOL') {
+            return {
+                colorscheme: {
+                    prop: 'ss',
+                    map: HOME_SS_COLORS
+                }
+            };
+        } else if (colorMode === 'chain') {
+            return {
+                colorscheme: {
+                    prop: 'chain',
+                    map: HOME_CHAIN_COLORS
+                }
+            };
+        }
+        return { color: 'spectrum' };
+    }
+
     function applyHomeStyle() {
         if (!homeViewer) return;
+        const token = ++homeRenderToken;
+
+        // Limpa todas as superfícies e estilos anteriores para não sobrepor representações
+        homeViewer.removeAllSurfaces();
         homeViewer.setStyle({}, {});
 
-        let styleObj = {};
-        if (homeColor === 'spectrum') {
-            styleObj.color = 'spectrum';
-        } else if (homeColor === 'ssPyMOL') {
-            styleObj.colorscheme = 'ssPyMOL';
-        } else if (homeColor === 'chain') {
-            styleObj.color = 'chain';
-        }
+        const styleObj = buildHomeColorSpec(homeViewer, homeColor, homeStyle);
 
         if (homeStyle === 'cartoon') {
             homeViewer.setStyle({}, { cartoon: styleObj });
@@ -499,8 +567,16 @@
         } else if (homeStyle === 'sphere') {
             homeViewer.setStyle({}, { sphere: styleObj });
         } else if (homeStyle === 'surface') {
-            homeViewer.setStyle({}, { cartoon: styleObj });
-            homeViewer.addSurface($3Dmol.SurfaceType.VDW, { opacity: 0.75, color: 'white' });
+            const surfStyle = Object.assign({ opacity: 0.92 }, styleObj);
+            const surfPromise = homeViewer.addSurface($3Dmol.SurfaceType.VDW, surfStyle);
+            if (surfPromise && typeof surfPromise.then === 'function') {
+                surfPromise.then(function(surfId) {
+                    if (token !== homeRenderToken || homeStyle !== 'surface') {
+                        homeViewer.removeAllSurfaces();
+                    }
+                    homeViewer.render();
+                });
+            }
         }
         homeViewer.render();
     }

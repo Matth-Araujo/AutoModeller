@@ -1,8 +1,14 @@
+import os
 import re
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
+from django.utils.html import strip_tags
 from .models import Experiment
+
+ALLOWED_SEQUENCE_EXTENSIONS = {'.pir', '.fasta', '.fa', '.seq', '.ali', '.txt'}
+MAX_SEQUENCE_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
+MAX_SEQUENCE_TEXT_LENGTH = 50000          # 50k caracteres
 
 class ExperimentCreateForm(forms.ModelForm):
     title = forms.CharField(
@@ -89,15 +95,37 @@ class ExperimentCreateForm(forms.ModelForm):
 
         file_prefix = None
         if seq_file:
+            safe_filename = os.path.basename(seq_file.name)
+            _, ext = os.path.splitext(safe_filename.lower())
+            if ext and ext not in ALLOWED_SEQUENCE_EXTENSIONS:
+                raise forms.ValidationError(
+                    "Invalid file type. Allowed formats: .pir, .fasta, .fa, .seq, .ali, .txt"
+                )
+            if seq_file.size and seq_file.size > MAX_SEQUENCE_FILE_SIZE:
+                raise forms.ValidationError("The uploaded file exceeds the maximum allowed size of 2 MB.")
             try:
-                content = seq_file.read().decode('utf-8', errors='ignore')
+                raw_bytes = seq_file.read(MAX_SEQUENCE_FILE_SIZE + 1)
+                if b'\x00' in raw_bytes:
+                    raise forms.ValidationError("Binary files are not allowed. Please upload a valid text sequence file.")
+                content = raw_bytes.decode('utf-8', errors='ignore')
                 cleaned_data['sequence_text'] = content
                 seq_text = content
-                file_prefix = seq_file.name.split('.')[0]
+                file_prefix = os.path.splitext(safe_filename)[0]
+            except forms.ValidationError:
+                raise
             except Exception as e:
                 raise forms.ValidationError(f"Could not read the uploaded file: {e}")
         elif not seq_text or not seq_text.strip():
             raise forms.ValidationError("Please provide the protein sequence by pasting text or uploading a file.")
+
+        if len(seq_text) > MAX_SEQUENCE_TEXT_LENGTH:
+            raise forms.ValidationError("The protein sequence exceeds the maximum allowed length (50,000 characters).")
+
+        # Sanitização contra XSS nos campos de texto livre
+        if cleaned_data.get('title'):
+            cleaned_data['title'] = strip_tags(cleaned_data['title']).strip()[:200]
+        if cleaned_data.get('description'):
+            cleaned_data['description'] = strip_tags(cleaned_data['description']).strip()[:2000]
 
         # Detecção automática do nome/código da sequência
         seq_name = None
@@ -209,6 +237,30 @@ class TemplateSelectForm(forms.Form):
         required=False,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Fim'})
     )
+
+    def clean_template_code(self):
+        val = (self.cleaned_data.get('template_code') or '').strip()
+        if val and not re.match(r'^[A-Za-z0-9_]{3,20}$', val):
+            raise forms.ValidationError("Invalid PDB template code.")
+        return val
+
+    def clean_custom_pdb(self):
+        val = (self.cleaned_data.get('custom_pdb') or '').strip()
+        if val and not re.match(r'^[A-Za-z0-9_]{3,10}$', val):
+            raise forms.ValidationError("Invalid PDB code format. Use alphanumeric characters only (e.g., 1BDM).")
+        return val
+
+    def clean_template_chain(self):
+        val = (self.cleaned_data.get('template_chain') or 'A').strip()
+        if not re.match(r'^[A-Za-z0-9]{1,4}$', val):
+            return 'A'
+        return val
+
+    def clean_custom_chain(self):
+        val = (self.cleaned_data.get('custom_chain') or 'A').strip()
+        if not re.match(r'^[A-Za-z0-9]{1,4}$', val):
+            return 'A'
+        return val
 
 
 class RegisterForm(UserCreationForm):
