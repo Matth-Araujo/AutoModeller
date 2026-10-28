@@ -43,7 +43,6 @@
 
                 <div class="d-flex justify-content-end mb-3">
                     <a href="{% url 'experiment_create' %}?sample=1" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i>
                         {% if is_pt %}Preencher com Exemplo (TvLDH){% else %}Load Example (TvLDH){% endif %}
                     </a>
                 </div>
@@ -138,7 +137,6 @@
                                         <input class="form-check-input mt-1" type="radio" name="pipeline_mode" id="mode_auto" value="AUTO" checked onchange="handleModeChange()">
                                         <div>
                                             <label class="fw-bold mb-0 text-dark" for="mode_auto" style="cursor: pointer;">
-                                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>
                                                 {% if is_pt %}Modelagem Rápida{% else %}Quick Modeling{% endif %}
                                             </label>
                                             <span class="badge bg-success-subtle text-success border border-success-subtle small ms-1">
@@ -163,7 +161,6 @@
                                         <input class="form-check-input mt-1" type="radio" name="pipeline_mode" id="mode_step" value="STEP" onchange="handleModeChange()">
                                         <div>
                                             <label class="fw-bold mb-0 text-dark" for="mode_step" style="cursor: pointer;">
-                                                <i class="bi bi-gear-wide-connected text-primary me-1"></i>
                                                 {% if is_pt %}Modelagem com Parâmetros{% else %}Custom Guided Modeling{% endif %}
                                             </label>
                                             <span class="badge bg-primary-subtle text-primary border border-primary-subtle small ms-1">
@@ -267,7 +264,7 @@
             cardStep.classList.remove('border-primary', 'bg-primary-subtle', 'bg-opacity-10');
             sectionParams.classList.add('d-none');
             textSubmit.textContent = isPt ? "Iniciar Modelagem Rápida Automática" : "Start Automated Quick Modeling";
-            iconSubmit.className = "bi bi-lightning-charge-fill me-1 text-warning";
+            iconSubmit.className = "bi bi-play-fill me-1";
         } else {
             cardStep.classList.add('border-primary', 'bg-primary-subtle', 'bg-opacity-10');
             cardAuto.classList.remove('border-primary', 'bg-primary-subtle', 'bg-opacity-10');

@@ -521,6 +521,22 @@
     let isSpinning = false;
     let currentStyle = 'cartoon';
     let currentColor = 'spectrum';
+    let detailRenderToken = 0;
+
+    const DETAIL_CHAIN_COLORS = {
+        'A': '#2563eb', 'B': '#dc2626', 'C': '#16a34a', 'D': '#d97706',
+        'E': '#9333ea', 'F': '#0891b2', 'G': '#db2777', 'H': '#4f46e5',
+        'I': '#059669', 'J': '#ea580c', 'K': '#7c3aed', 'L': '#0284c7',
+        'M': '#65a30d', 'N': '#0d9488', 'O': '#e11d48', 'P': '#7e22ce',
+        ' ': '#2563eb', '': '#2563eb'
+    };
+
+    const DETAIL_SS_COLORS = {
+        'h': '#e11d48',
+        's': '#eab308',
+        'c': '#22c55e',
+        '': '#22c55e'
+    };
 
     // Inicialização do 3Dmol
     function init3DViewer(pdbUrl) {
@@ -533,11 +549,15 @@
 
     function loadPdbToViewer(pdbUrl) {
         if (!viewer3d || !pdbUrl) return;
+        detailRenderToken += 1;
+        viewer3d.removeAllSurfaces();
         viewer3d.clear();
 
         fetch(pdbUrl)
             .then(response => response.text())
             .then(pdbData => {
+                viewer3d.removeAllSurfaces();
+                viewer3d.clear();
                 viewer3d.addModel(pdbData, "pdb");
                 applyViewerStyle();
                 viewer3d.zoomTo();
@@ -546,18 +566,60 @@
             .catch(err => console.error("Error loading PDB into 3Dmol:", err));
     }
 
+    function buildColorSpec(viewer, colorMode, forStyle) {
+        if (colorMode === 'spectrum') {
+            if (forStyle === 'cartoon') {
+                return { color: 'spectrum' };
+            }
+            const atoms = viewer.selectedAtoms({});
+            let minResi = Infinity;
+            let maxResi = -Infinity;
+            for (let i = 0; i < atoms.length; i++) {
+                const r = atoms[i].resi;
+                if (typeof r === 'number' && !isNaN(r)) {
+                    if (r < minResi) minResi = r;
+                    if (r > maxResi) maxResi = r;
+                }
+            }
+            if (!isFinite(minResi) || !isFinite(maxResi) || minResi === maxResi) {
+                minResi = 1;
+                maxResi = 350;
+            }
+            return {
+                colorscheme: {
+                    prop: 'resi',
+                    gradient: 'roygb',
+                    min: minResi,
+                    max: maxResi
+                }
+            };
+        } else if (colorMode === 'ssPyMOL') {
+            return {
+                colorscheme: {
+                    prop: 'ss',
+                    map: DETAIL_SS_COLORS
+                }
+            };
+        } else if (colorMode === 'chain') {
+            return {
+                colorscheme: {
+                    prop: 'chain',
+                    map: DETAIL_CHAIN_COLORS
+                }
+            };
+        }
+        return { color: 'spectrum' };
+    }
+
     function applyViewerStyle() {
         if (!viewer3d) return;
+        const token = ++detailRenderToken;
+
+        // Limpa todas as superfícies e estilos anteriores para não sobrepor representações
+        viewer3d.removeAllSurfaces();
         viewer3d.setStyle({}, {});
 
-        let styleObj = {};
-        if (currentColor === 'spectrum') {
-            styleObj.color = 'spectrum';
-        } else if (currentColor === 'ssPyMOL') {
-            styleObj.colorscheme = 'ssPyMOL';
-        } else if (currentColor === 'chain') {
-            styleObj.color = 'chain';
-        }
+        const styleObj = buildColorSpec(viewer3d, currentColor, currentStyle);
 
         if (currentStyle === 'cartoon') {
             viewer3d.setStyle({}, { cartoon: styleObj });
@@ -566,8 +628,16 @@
         } else if (currentStyle === 'sphere') {
             viewer3d.setStyle({}, { sphere: styleObj });
         } else if (currentStyle === 'surface') {
-            viewer3d.setStyle({}, { cartoon: styleObj });
-            viewer3d.addSurface($3Dmol.SurfaceType.VDW, { opacity: 0.7, color: 'white' });
+            const surfStyle = Object.assign({ opacity: 0.92 }, styleObj);
+            const surfPromise = viewer3d.addSurface($3Dmol.SurfaceType.VDW, surfStyle);
+            if (surfPromise && typeof surfPromise.then === 'function') {
+                surfPromise.then(function(surfId) {
+                    if (token !== detailRenderToken || currentStyle !== 'surface') {
+                        viewer3d.removeAllSurfaces();
+                    }
+                    viewer3d.render();
+                });
+            }
         }
         viewer3d.render();
     }

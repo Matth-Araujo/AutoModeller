@@ -14,4 +14,6 @@ urlpatterns = [
     path('experiments/claim/', views.experiment_claim, name='experiment_claim'),
     path('register/', views.register_view, name='register'),
     path('set-language/', views.set_language_custom, name='set_language_custom'),
+    path('privacy/', views.privacy_policy, name='privacy_policy'),
+    path('cookies/', views.cookie_policy, name='cookie_policy'),
 ]

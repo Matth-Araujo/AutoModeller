@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if is_pt %}Política de Cookies - AutoModeller WEB{% else %}Cookie Policy - AutoModeller WEB{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h1 class="h4 mb-0 fw-bold text-primary">
+                    <i class="bi bi-cookie me-2"></i>
+                    {% if is_pt %}Política de Cookies e Armazenamento Local{% else %}Cookie & Local Storage Policy{% endif %}
+                </h1>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    {% if is_pt %}Apenas Cookies Essenciais{% else %}Strictly Necessary Cookies Only{% endif %}
+                </span>
+            </div>
+            <div class="card-body p-4">
+                {% if is_pt %}
+                    <p class="text-muted">
+                        O <strong>AutoModeller WEB</strong> utiliza <strong>exclusivamente cookies estritamente necessários (essenciais)</strong> para o funcionamento técnico, segurança e preservação de sessão dos seus experimentos científicos. <strong>Não utilizamos cookies de publicidade, rastreamento comportamental ou marketing de terceiros.</strong>
+                    </p>
+
+                    <h2 class="h5 fw-bold text-dark mt-4 mb-3">
+                        <i class="bi bi-table text-primary me-2"></i>Tabela de Cookies Utilizados
+                    </h2>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nome do Cookie</th>
+                                    <th>Tipo</th>
+                                    <th>Duração</th>
+                                    <th>Finalidade Técnica e de Segurança</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>sessionid</code></td>
+                                    <td><span class="badge bg-success">Essencial / Segurança</span></td>
+                                    <td>7 dias (HttpOnly)</td>
+                                    <td>Mantém sua sessão autenticada ou vincula seus experimentos criados no <em>Modo Avulso</em> (sem login) para que você não perca seus modelos 3D ao atualizar a página.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>csrftoken</code></td>
+                                    <td><span class="badge bg-danger">Segurança (Anti-CSRF)</span></td>
+                                    <td>1 ano (SameSite=Lax)</td>
+                                    <td>Protege todos os formulários do site contra ataques de falsificação de requisição entre sites (<em>Cross-Site Request Forgery</em>).</td>
+                                </tr>
+                                <tr>
+                                    <td><code>site_lang</code></td>
+                                    <td><span class="badge bg-info text-dark">Preferência Funcional</span></td>
+                                    <td>1 ano (HttpOnly)</td>
+                                    <td>Memoriza o idioma escolhido na interface (Português <code>pt</code> ou Inglês <code>en</code>).</td>
+                                </tr>
+                                <tr>
+                                    <td><code>automodeller_cookie_consent</code></td>
+                                    <td><span class="badge bg-secondary">Preferência</span></td>
+                                    <td>1 ano</td>
+                                    <td>Registra que você visualizou e aceitou o aviso de uso de cookies essenciais para não exibi-lo repetidamente.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h2 class="h5 fw-bold text-dark mb-3">
+                        <i class="bi bi-sliders text-primary me-2"></i>Como Gerenciar Cookies no Navegador
+                    </h2>
+                    <p class="text-muted mb-4">
+                        Você pode limpar ou bloquear cookies a qualquer momento nas configurações do seu navegador. Observe que a desativação dos cookies essenciais (<code>sessionid</code> e <code>csrftoken</code>) impedirá o envio de novos experimentos e a autenticação na plataforma por motivos de segurança contra ataques CSRF.
+                    </p>
+                {% else %}
+                    <p class="text-muted">
+                        <strong>AutoModeller WEB</strong> uses <strong>strictly necessary (essential) cookies only</strong> for technical operation, security protection, and preserving your scientific modeling session. <strong>We do not use third-party advertising, behavioral tracking, or marketing cookies.</strong>
+                    </p>
+
+                    <h2 class="h5 fw-bold text-dark mt-4 mb-3">
+                        <i class="bi bi-table text-primary me-2"></i>Cookies Used on This Platform
+                    </h2>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Cookie Name</th>
+                                    <th>Category</th>
+                                    <th>Duration</th>
+                                    <th>Technical & Security Purpose</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>sessionid</code></td>
+                                    <td><span class="badge bg-success">Essential / Security</span></td>
+                                    <td>7 days (HttpOnly)</td>
+                                    <td>Maintains your authenticated session or links experiments created in <em>Guest Mode</em> so your 3D models are preserved across page reloads.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>csrftoken</code></td>
+                                    <td><span class="badge bg-danger">Security (Anti-CSRF)</span></td>
+                                    <td>1 year (SameSite=Lax)</td>
+                                    <td>Protects all form submissions against <em>Cross-Site Request Forgery (CSRF)</em> attacks.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>site_lang</code></td>
+                                    <td><span class="badge bg-info text-dark">Functional Preference</span></td>
+                                    <td>1 year (HttpOnly)</td>
+                                    <td>Remembers your selected interface language (English <code>en</code> or Portuguese <code>pt</code>).</td>
+                                </tr>
+                                <tr>
+                                    <td><code>automodeller_cookie_consent</code></td>
+                                    <td><span class="badge bg-secondary">Preference</span></td>
+                                    <td>1 year</td>
+                                    <td>Stores your acknowledgment of the essential cookie banner so it is not shown on every page load.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h2 class="h5 fw-bold text-dark mb-3">
+                        <i class="bi bi-sliders text-primary me-2"></i>Managing Cookies in Your Browser
+                    </h2>
+                    <p class="text-muted mb-4">
+                        You can clear or block cookies at any time through your browser settings. Please note that disabling strictly necessary cookies (<code>sessionid</code> and <code>csrftoken</code>) will prevent form submissions and sign-in due to anti-CSRF security protections.
+                    </p>
+                {% endif %}
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top">
+                    <a href="{% url 'privacy_policy' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-shield-lock me-1"></i>
+                        {% if is_pt %}Ver Política de Privacidade{% else %}View Privacy Policy{% endif %}
+                    </a>
+                    <a href="{% url 'home' %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        {% if is_pt %}Voltar ao Início{% else %}Back to Home{% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
