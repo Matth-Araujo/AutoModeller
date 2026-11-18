@@ -1,0 +1,29 @@
+ _aln.pos            10        20        30        40        50        60
+1bdm_target  MKAPVRVAVTGAAGQIGYSLLFRIAAGEMLGKDQPVILQLLEIPQAMKALEGVVMELEDCAFPLL 
+1bdm         MKAPVRVAVTGAAGQIGYSLLFRIAAGEMLGKDQPVILQLLEIPQAMKALEGVVMELEDCAFPLL 
+ _consrvd    *****************************************************************
+
+ _aln.pos       70        80        90       100       110       120       130
+1bdm_target  AGLEATDDPDVAFKDADYALLVGAAPRKAGMERRDLLQVNGKIFTEQGRALAEVAKKDVKVLVVG 
+1bdm         AGLEATDDPDVAFKDADYALLVGAAPR---------LQVNGKIFTEQGRALAEVAKKDVKVLVVG 
+ _consrvd    ***************************         *****************************
+
+ _aln.pos           140       150       160       170       180       190
+1bdm_target  NPANTNALIAYKNAPGLNPRNFTAMTRLDHNRAKAQLAKKTGTGVDRIRRMTVWGNHSSIMFPDL 
+1bdm         NPANTNALIAYKNAPGLNPRNFTAMTRLDHNRAKAQLAKKTGTGVDRIRRMTVWGNHSSIMFPDL 
+ _consrvd    *****************************************************************
+
+ _aln.pos      200       210       220       230       240       250       260
+1bdm_target  FHAEVDGRPALELVDMEWYEKVFIPTVAQRGAAIIQARGASSAASAANAAIEHIRDWALGTPEGD 
+1bdm         FHAEVDGRPALELVDMEWYEKVFIPTVAQRGAAIIQARGASSAASAANAAIEHIRDWALGTPEGD 
+ _consrvd    *****************************************************************
+
+ _aln.pos           270       280       290       300       310       320
+1bdm_target  WVSMAVPSQGEYGIPEGIVYSFPVTAKDGAYRVVEGLEINEFARKRMEITAQELLDEMEQVKALG 
+1bdm         WVSMAVPSQGEYGIPEGIVYSFPVTAKDGAYRVVEGLEINEFARKRMEITAQELLDEMEQVKALG 
+ _consrvd    *****************************************************************
+
+ _aln.pos
+1bdm_target  LI- 
+1bdm         LI. 
+ _consrvd    **

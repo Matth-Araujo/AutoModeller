@@ -1,0 +1,14 @@
+ _aln.pos         10        20        30        40        50        60
+1BL8      -ALHWRAAGAATVLLVIVLLAGSYLAVLAERGAPGAQLITYPRALWWSVETATTVGYGDLYPVTLWGR 
+1r3j      SALHWRAAGAATVLLVIVLLAGSYLAVLAERGAPGAQLITYPRALWWSVETATTVGYGDLYPVTLWGR 
+ _consrvd  *******************************************************************
+
+ _aln.p   70        80        90       100       110       120       130
+1BL8      CVAVVVMVAGITSFGLVTAALATWFVGREQ-------------------------------------- 
+1r3j      CVAVVVMVAGITSFGLVTAALATWFVGREQERRGH.wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww 
+ _consrvd ******************************
+
+ _aln.pos  140
+1BL8      ------------- 
+1r3j      wwwwwwwwwwwww 
+ _consrvd

@@ -1,0 +1,19 @@
+ _aln.pos         10        20        30        40        50        60
+1TUP      SSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMA 
+1hu8      --------TYQGNYGFHLGFLQSGTAKSVMCTYSPPLNKLFCQLAKTCPVQLWVSATPPAGSRVRAMA 
+ _consrvd         **** *** **** ******* ***** *** **************  *** * ******
+
+ _aln.p   70        80        90       100       110       120       130
+1TUP      IYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDC 
+1hu8      IYKKSQHMTEVVRRCPHHERCSDGDGLAPPQHLIRVEGNLAPEYLEDRQTFRHSVVVPYEPPEAGSEY 
+ _consrvd *** ******************* ****************  *** ** ************** **
+
+ _aln.pos  140       150       160       170       180       190       200
+1TUP      TTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEE---------- 
+1hu8      TTIHYKYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRDSFEVRVCACPGRDRRTEEEwwwwwwwwww 
+ _consrvd ***** ******************************** *******************
+
+ _aln.pos    210       220       230       240
+1TUP      --------------------------------------NL 
+1hu8      wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww-- 
+ _consrvd
