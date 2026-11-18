@@ -1,6 +1,25 @@
-Django>=5.0,<7.0
-should_dsl>=2.1.2
-matplotlib>=3.8.0
-numpy>=1.26.0
-asgiref>=3.8.0
-sqlparse>=0.5.0
+# =====================================================================
+# AutoModeller WEB - Dependências Python (pip install -r requirements.txt)
+# =====================================================================
+
+# Framework Web Principal
+Django>=5.0
+
+# Geração de gráficos de perfil energético DOPE e processamento de imagens
+matplotlib>=3.7.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Servidor WSGI de Produção (para deploy no servidor da universidade com Nginx)
+gunicorn>=21.2.0
+
+# Suíte de Testes Automatizados BDD
+should-dsl>=2.1.2
+
+# =====================================================================
+# NOTA SOBRE O MODELLER 10.7:
+# O Modeller é um pacote científico externo do Sali Lab e deve ser instalado
+# no servidor via Conda:
+#     conda install -c salilab modeller
+# ou pelo pacote oficial (.deb / .rpm) de https://salilab.org/modeller/
+# =====================================================================
