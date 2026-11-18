@@ -13,8 +13,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <!-- 3Dmol.js para visualização 3D de proteínas -->
-    <script src="https://3dmol.org/build/3Dmol-min.js"></script>
+    <!-- 3Dmol.js para visualização 3D de proteínas (local + fallback CDN) -->
+    <script src="{% static 'js/3Dmol-min.js' %}"></script>
 
     <style>
         :root {

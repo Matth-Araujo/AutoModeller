@@ -87,11 +87,11 @@ class SecurityHeadersAndRateLimitMiddleware:
         # Content Security Policy (CSP) compatível com Bootstrap CDN, Google Fonts, 3Dmol.js (WebGL/Workers) e RCSB PDB
         csp_directives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net https://3dmol.org",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.jsdelivr.net https://3dmol.org https://3dmol.csb.pitt.edu https://cdnjs.cloudflare.com",
             "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
             "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
             "img-src 'self' data: blob: https:",
-            "connect-src 'self' https://files.rcsb.org https://*.rcsb.org https://3dmol.org https://cdn.jsdelivr.net",
+            "connect-src 'self' https://files.rcsb.org https://*.rcsb.org https://3dmol.org https://3dmol.csb.pitt.edu https://cdn.jsdelivr.net",
             "worker-src 'self' blob:",
             "frame-ancestors 'none'",
             "object-src 'none'",

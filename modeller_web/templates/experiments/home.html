@@ -357,11 +357,15 @@
     };
 
     function initHomeViewer() {
-        const element = document.getElementById('home-mol-viewer');
-        if (!element) return;
-
-        homeViewer = $3Dmol.createViewer(element, { backgroundColor: 'white' });
         renderThumbnails();
+        const element = document.getElementById('home-mol-viewer');
+        if (element && typeof $3Dmol !== 'undefined') {
+            try {
+                homeViewer = $3Dmol.createViewer(element, { backgroundColor: 'white' });
+            } catch (e) {
+                console.error("Error creating 3Dmol viewer:", e);
+            }
+        }
         loadStructure(0);
         startAutoAdvance();
     }
@@ -390,7 +394,7 @@
     }
 
     function loadStructure(idx) {
-        if (!homeViewer || idx < 0 || idx >= structures.length) return;
+        if (!structures || idx < 0 || idx >= structures.length) return;
         currentIdx = idx;
         const st = structures[idx];
 
@@ -437,6 +441,8 @@
         }
 
         renderThumbnails();
+
+        if (!homeViewer) return;
 
         const loading = document.getElementById('home-viewer-loading');
         if (loading) loading.classList.remove('d-none');
