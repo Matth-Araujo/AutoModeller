@@ -6,7 +6,8 @@ import sys
 def get_modeller_env():
     """Retorna ambiente com todos os caminhos necessários para o Modeller 10.7 no Python 3."""
     env = os.environ.copy()
-    env.setdefault("KEY_MODELLER", "MODELIRANJE")
+    if "KEY_MODELLER" in os.environ:
+        env["KEY_MODELLER"] = os.environ["KEY_MODELLER"]
 
     mod_install = os.environ.get("MODINSTALL10v7", "/usr/lib/modeller10.7")
     mod_lib = os.path.join(mod_install, "lib", "x86_64-intel8")
@@ -35,7 +36,6 @@ def get_modeller_env():
 
 class Modeller_Caller:
     def __init__(self):
-        os.environ.setdefault("KEY_MODELLER", "MODELIRANJE")
         env_exe = os.environ.get("SMOSH_MODELLER_PYTHON")
         if env_exe and "mod10." not in os.path.basename(env_exe) and os.path.exists(env_exe):
             self.modeller_executable = env_exe

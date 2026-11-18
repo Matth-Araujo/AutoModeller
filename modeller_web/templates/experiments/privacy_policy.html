@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if is_pt %}Política de Privacidade e Segurança - AutoModeller WEB{% else %}Privacy & Security Policy - AutoModeller WEB{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h1 class="h4 mb-0 fw-bold text-primary">
+                    <i class="bi bi-shield-lock-fill me-2"></i>
+                    {% if is_pt %}Política de Privacidade e Proteção de Dados (LGPD / GDPR){% else %}Privacy & Data Protection Policy (LGPD / GDPR){% endif %}
+                </h1>
+                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                    <i class="bi bi-check-circle-fill me-1"></i>
+                    {% if is_pt %}Conformidade LGPD{% else %}LGPD / GDPR Compliant{% endif %}
+                </span>
+            </div>
+            <div class="card-body p-4">
+                {% if is_pt %}
+                    <p class="text-muted">
+                        O <strong>AutoModeller WEB</strong> tem o compromisso com a transparência, a privacidade dos pesquisadores e estudantes e a segurança das informações processadas em nossa plataforma de modelagem molecular comparativa 3D, em conformidade com a <strong>Lei Geral de Proteção de Dados Pessoais (LGPD — Lei nº 13.709/2018)</strong> e diretrizes internacionais de proteção de dados (GDPR).
+                    </p>
+
+                    <hr class="my-4">
+
+                    <h2 class="h5 fw-bold text-dark mb-3">
+                        <i class="bi bi-database-check text-primary me-2"></i>1. Quais Dados Coletamos
+                    </h2>
+                    <ul class="mb-4">
+                        <li class="mb-2">
+                            <strong>Modo Avulso (Sem Cadastro):</strong> Nenhum dado pessoal identificável (como nome ou e-mail) é exigido. Utilizamos apenas um identificador temporário de sessão (<code>session_key</code>) para vincular seus experimentos de modelagem 3D durante a navegação.
+                        </li>
+                        <li class="mb-2">
+                            <strong>Usuários Cadastrados:</strong> Quando você opta por criar uma conta para manter seu histórico permanente de experimentos, coletamos seu <strong>nome</strong>, <strong>endereço de e-mail</strong> e <strong>senha armazenada exclusivamente na forma de hash criptográfico irreversível (PBKDF2-SHA256 com salt)</strong>.
+                        </li>
+                        <li class="mb-2">
+                            <strong>Dados Científicos dos Experimentos:</strong> Sequências proteicas submetidas (formatos <code>.pir</code>, <code>.fasta</code> ou texto), parâmetros da esteira do Modeller, alinhamentos 2D e arquivos de coordenadas atômicas 3D (<code>.pdb</code>) gerados.
+                        </li>
+                        <li class="mb-2">
+                            <strong>Registros Técnicos de Segurança:</strong> O endereço IP é processado temporariamente em memória volátil exclusivamente para prevenção de ataques automatizados de força bruta e negação de serviço (<em>Rate Limiting</em>).
+                        </li>
+                    </ul>
+
+                    <h2 class="h5 fw-bold text-dark mb-3">
+                        <i class="bi bi-bullseye text-primary me-2"></i>2. Finalidade do Tratamento dos Dados
+                    </h2>
+                    <p>Os dados coletados são utilizados estritamente para:</p>
+                    <ul class="mb-4">
+                        <li>Executar a pipeline de modelagem comparativa 3D (busca de moldes homólogos no PDB, alinhamento sequência-estrutura, construção de modelos 3D e avaliação energética DOPE/GA341);</li>
+                        <li>Permitir que você consulte, visualize em 3D e faça download dos pacotes <code>.zip</code> de seus experimentos;</li>
+                        <li>Proteger a integridade do servidor e das contas contra acessos não autorizados, abusos computacionais e ataques web.</li>
+                    </ul>
+                    <div class="alert alert-info border-0 shadow-sm">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <strong>Compromisso de Não Comercialização:</strong> O AutoModeller WEB <strong>jamais</strong> vende, aluga ou compartilha dados pessoais ou sequências científicas com terceiros para fins comerciais ou publicitários.
+                    </div>
+
+                    <h2 class="h5 fw-bold text-dark mt-4 mb-3">
+                        <i class="bi bi-lock-fill text-primary me-2"></i>3. Medidas Técnicas de Segurança Implementadas
+                    </h2>
+                    <p>Para proteger o site e seus dados contra a maioria dos ataques web (OWASP Top 10), implementamos:</p>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <div class="fw-bold text-dark mb-1"><i class="bi bi-shield-check text-success me-1"></i> Proteção CSRF, XSS e Clickjacking</div>
+                                <small class="text-muted">Tokens anti-CSRF em todas as requisições POST, sanitização de entradas HTML, cabeçalhos <code>Content-Security-Policy (CSP)</code>, <code>X-Frame-Options: DENY</code> e <code>X-Content-Type-Options: nosniff</code>.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <div class="fw-bold text-dark mb-1"><i class="bi bi-speedometer2 text-primary me-1"></i> Proteção Anti-Força Bruta e Rate Limiting</div>
+                                <small class="text-muted">Bloqueio automático temporário (HTTP 429) contra múltiplas tentativas de login/cadastro ou submissão massiva de jobs de modelagem.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <div class="fw-bold text-dark mb-1"><i class="bi bi-file-earmark-check text-info me-1"></i> Validação Estrita de Uploads e Path Traversal</div>
+                                <small class="text-muted">Verificação de extensões permitidas (<code>.pir</code>, <code>.fasta</code>, <code>.txt</code>), bloqueio de arquivos binários, limite de 2 MB e isolamento de diretórios.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <div class="fw-bold text-dark mb-1"><i class="bi bi-key-fill text-warning me-1"></i> Senhas e Sessões Criptografadas</div>
+                                <small class="text-muted">Senhas com hash PBKDF2-SHA256 e cookies de sessão protegidos com flags <code>HttpOnly</code> e <code>SameSite=Lax</code>.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 class="h5 fw-bold text-dark mb-3">
+                        <i class="bi bi-person-check-fill text-primary me-2"></i>4. Direitos do Titular dos Dados (Art. 18 da LGPD)
+                    </h2>
+                    <p class="mb-4">
+                        Você possui o direito de acessar seus dados, corrigir informações cadastrais, exportar os arquivos gerados em seus experimentos (via botão de download <code>.zip</code>) ou solicitar a revogação e exclusão de sua conta e experimentos vinculados a qualquer momento.
+                    </p>
+                {% else %}
+                    <p class="text-muted">
+                        <strong>AutoModeller WEB</strong> is committed to transparency, user privacy, and information security across our 3D comparative protein modeling platform, in full compliance with the <strong>Brazilian General Data Protection Law (LGPD — Law No. 13.709/2018)</strong> and international data protection standards (GDPR).
+                    </p>
+
+                    <hr class="my-4">
+
+                    <h2 class="h5 fw-bold text-dark mb-3">
+                        <i class="bi bi-database-check text-primary me-2"></i>1. Data We Collect
+                    </h2>
+                    <ul class="mb-4">
+                        <li class="mb-2">
+                            <strong>Guest Mode (No Registration):</strong> No personally identifiable information (name or email) is required. We only use a temporary session identifier (<code>session_key</code>) to associate your 3D modeling experiments during your browsing session.
+                        </li>
+                        <li class="mb-2">
+                            <strong>Registered Users:</strong> When you create an account to keep a permanent experiment history, we collect your <strong>name</strong>, <strong>email address</strong>, and <strong>password stored exclusively as an irreversible cryptographic hash (PBKDF2-SHA256 with salt)</strong>.
+                        </li>
+                        <li class="mb-2">
+                            <strong>Scientific Experiment Data:</strong> Submitted protein sequences (<code>.pir</code>, <code>.fasta</code>, or plain text), Modeller pipeline parameters, 2D alignments, and generated 3D atomic coordinate files (<code>.pdb</code>).
+                        </li>
+                        <li class="mb-2">
+                            <strong>Technical Security Logs:</strong> IP addresses are temporarily processed in volatile memory strictly to prevent automated brute-force and denial-of-service attacks (<em>Rate Limiting</em>).
+                        </li>
+                    </ul>
+
+                    <h2 class="h5 fw-bold text-dark mb-3">
+                        <i class="bi bi-bullseye text-primary me-2"></i>2. Purpose of Data Processing
+                    </h2>
+                    <p>Collected data is used strictly to:</p>
+                    <ul class="mb-4">
+                        <li>Execute the 3D comparative modeling pipeline (homologous PDB template search, sequence-structure alignment, 3D model building, and DOPE/GA341 energy profiling);</li>
+                        <li>Allow you to inspect, visualize in 3D, and download <code>.zip</code> archives of your experiments;</li>
+                        <li>Protect server integrity and user accounts against unauthorized access, computational abuse, and web attacks.</li>
+                    </ul>
+                    <div class="alert alert-info border-0 shadow-sm">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <strong>No Third-Party Selling:</strong> AutoModeller WEB <strong>never</strong> sells, rents, or shares personal data or scientific sequences with third parties for commercial or advertising purposes.
+                    </div>
+
+                    <h2 class="h5 fw-bold text-dark mt-4 mb-3">
+                        <i class="bi bi-lock-fill text-primary me-2"></i>3. Technical Security Controls Implemented
+                    </h2>
+                    <p>To protect the platform and your data against common web attacks (OWASP Top 10), we enforce:</p>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <div class="fw-bold text-dark mb-1"><i class="bi bi-shield-check text-success me-1"></i> CSRF, XSS & Clickjacking Defense</div>
+                                <small class="text-muted">Anti-CSRF tokens on all POST forms, HTML input sanitization, <code>Content-Security-Policy (CSP)</code>, <code>X-Frame-Options: DENY</code>, and <code>X-Content-Type-Options: nosniff</code>.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <div class="fw-bold text-dark mb-1"><i class="bi bi-speedometer2 text-primary me-1"></i> Anti-Brute Force & Rate Limiting</div>
+                                <small class="text-muted">Automated temporary throttling (HTTP 429) against rapid login/registration attempts or computational flooding.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <div class="fw-bold text-dark mb-1"><i class="bi bi-file-earmark-check text-info me-1"></i> Strict Upload & Path Traversal Protection</div>
+                                <small class="text-muted">Allowlist validation for sequence files (<code>.pir</code>, <code>.fasta</code>, <code>.txt</code>), binary payload blocking, 2 MB upload cap, and directory sandboxing.</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded bg-light h-100">
+                                <div class="fw-bold text-dark mb-1"><i class="bi bi-key-fill text-warning me-1"></i> Hashed Passwords & Hardened Sessions</div>
+                                <small class="text-muted">PBKDF2-SHA256 password hashing and session cookies protected with <code>HttpOnly</code> and <code>SameSite=Lax</code> flags.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 class="h5 fw-bold text-dark mb-3">
+                        <i class="bi bi-person-check-fill text-primary me-2"></i>4. Your Data Protection Rights
+                    </h2>
+                    <p class="mb-4">
+                        You have the right to access your data, update account information, export generated experiment files (via the <code>.zip</code> download button), or request deletion of your account and linked experiments at any time.
+                    </p>
+                {% endif %}
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 border-top">
+                    <a href="{% url 'cookie_policy' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-cookie me-1"></i>
+                        {% if is_pt %}Ver Política de Cookies{% else %}View Cookie Policy{% endif %}
+                    </a>
+                    <a href="{% url 'home' %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        {% if is_pt %}Voltar ao Início{% else %}Back to Home{% endif %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

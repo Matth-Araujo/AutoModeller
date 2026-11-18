@@ -26,8 +26,10 @@ from smosh.ModelingTools.PDBFile import PDBFile
 from smosh.ModelingTools.AlignFile import AlignFile
 from smosh.Exceptions.ModellerException import ModellerException
 
-# Garante que a chave de licença oficial do Modeller (MODELIRANJE) e os caminhos estejam no ambiente
-os.environ.setdefault('KEY_MODELLER', getattr(settings, 'KEY_MODELLER', 'MODELIRANJE'))
+# Configura chave de licença do Modeller e caminhos nativos no ambiente
+modeller_key = os.environ.get('KEY_MODELLER') or getattr(settings, 'KEY_MODELLER', '')
+if modeller_key:
+    os.environ['KEY_MODELLER'] = modeller_key
 mod_install = os.environ.get('MODINSTALL10v7', '/usr/lib/modeller10.7')
 mod_lib = os.path.join(mod_install, 'lib', 'x86_64-intel8')
 mod_py33 = os.path.join(mod_lib, 'python3.3')
@@ -70,7 +72,7 @@ def parse_pdb_scores(pdb_path):
     return scores
 
 
-def ensure_pir_format(seq_name, seq_text):
+def ensure_pir_format(seq_name, seq_text, force_code=False):
     """Garante formatação PIR adequada com cabeçalho >P1;... e linha de descrição de 10 campos."""
     text = seq_text.strip()
     lines = [l.strip() for l in text.splitlines() if l.strip()]
@@ -78,11 +80,15 @@ def ensure_pir_format(seq_name, seq_text):
         return text
 
     if lines[0].startswith('>P1;') or lines[0].startswith('>'):
-        code = lines[0].replace('>P1;', '').replace('>', '').strip() or seq_name
+        parsed_code = lines[0].replace('>P1;', '').replace('>', '').strip()
+        code = seq_name if force_code else (parsed_code or seq_name)
         header = f">P1;{code}"
         # Verifica se a segunda linha contém campos separados por dois pontos
         if len(lines) > 1 and lines[1].count(':') >= 4:
-            desc = lines[1]
+            if force_code:
+                desc = f"sequence:{code}:::::::0.00: 0.00"
+            else:
+                desc = lines[1]
             body_lines = lines[2:]
         else:
             desc = f"sequence:{code}:::::::0.00: 0.00"
@@ -214,26 +220,94 @@ def run_pipeline(experiment_id):
         # Selecionar o melhor template (ou template escolhido pelo usuário)
         if experiment.selected_template and experiment.selected_template.strip().lower() != seq_name.lower():
             best_template_code = experiment.selected_template.strip()
-        else:
-            better_profile = max(valid_candidates, key=lambda c: float(c.identity() or 0)) if valid_candidates else profile_of_templates.getBetterProfile()
+        elif valid_candidates:
+            better_profile = max(valid_candidates, key=lambda c: float(c.identity() or 0))
             best_template_code = better_profile.name()
             experiment.selected_template = best_template_code
+        else:
+            better_profile = profile_of_templates.getBetterProfile()
+            best_template_code = (better_profile.name() if better_profile and better_profile.name() else seq_name[:4]) or '1bdmA'
+            if len(best_template_code) == 4:
+                best_template_code = best_template_code + 'A'
+            experiment.selected_template = best_template_code
+            TemplateCandidate.objects.create(
+                experiment=experiment,
+                code=best_template_code,
+                chain=best_template_code[-1] if len(best_template_code) >= 5 else 'A',
+                identity=100.0,
+                is_selected=True
+            )
 
         # Marcar template selecionado no banco
         TemplateCandidate.objects.filter(experiment=experiment, code=best_template_code).update(is_selected=True)
 
         chain = best_template_code[-1] if len(best_template_code) >= 5 else 'A'
         experiment.template_chain = chain
-        experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] Template selecionado: {best_template_code} (Cadeia: {chain})\n"
+        experiment.save()
+
+        if experiment.pipeline_mode == 'STEP':
+            # Modo com Parâmetros / Passo a Passo:
+            # Pausa para o pesquisador visualizar e selecionar o template na tela dedicada!
+            experiment.status = 'AWAITING_TEMPLATE'
+            experiment.current_step = 'Busca concluída. Aguardando seleção de molde'
+            experiment.progress_percent = 25
+            experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] {experiment.candidates.count()} molde(s) homólogo(s) encontrado(s). Aguardando escolha do pesquisador.\n"
+            experiment.save()
+            return
+
+        # Modo AUTO (Modelagem Rápida): prossegue diretamente para a construção
+        continue_model_building(experiment_id)
+
+    except ModellerException as me:
+        experiment.status = 'FAILED'
+        experiment.current_step = 'Falha na execução do Modeller'
+        experiment.error_message = f"ModellerException: {me.log}"
+        experiment.log_output += f"\n[{timezone.now().strftime('%H:%M:%S')}] ERRO DO MODELLER:\n{me.log}\n"
+        experiment.save()
+    except Exception as e:
+        experiment.status = 'FAILED'
+        experiment.current_step = f'Erro: {str(e)}'
+        experiment.error_message = str(e)
+        experiment.log_output += f"\n[{timezone.now().strftime('%H:%M:%S')}] ERRO INESPERADO:\n{str(e)}\n"
+        experiment.save()
+
+
+def continue_model_building(experiment_id):
+    """
+    Segunda fase da pipeline: a partir do template selecionado (manual ou automático),
+    baixa a estrutura PDB, limpa heteroátomos, alinha as sequências (AlignStep),
+    constrói os modelos 3D (BuildModelStep) e calcula os perfis de energia DOPE.
+    """
+    experiment = Experiment.objects.get(id=experiment_id)
+    experiment.status = 'RUNNING'
+    experiment.save()
+
+    workdir = os.path.join(settings.MEDIA_ROOT, 'workspaces', str(experiment.uuid))
+    os.makedirs(workdir, exist_ok=True)
+    seq_name = experiment.sequence_name.strip() or "target"
+    ext = "pir" if experiment.sequence_type == "PIR" else "fasta"
+    seq_file_path = os.path.join(workdir, f"{seq_name}.{ext}")
+
+    try:
+        best_template_code = experiment.selected_template.strip()
+        chain = experiment.template_chain or (best_template_code[-1] if len(best_template_code) >= 5 else 'A')
+        experiment.template_chain = chain
+
+        experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] Iniciando construção com template: {best_template_code} (Cadeia: {chain})\n"
         experiment.current_step = f'Baixando e tratando PDB ({best_template_code})'
         experiment.progress_percent = 30
         experiment.save()
 
         # ETAPA 3: Obter PDB do molde (RCSB ou local)
-        # Verifica se o PDB já existe nos arquivos de teste do smosh
         smosh_base = os.path.join(settings.SMOSH_PARENT_DIR, 'smosh', 'files')
+        static_pdb_dir = os.path.join(settings.BASE_DIR, 'static', 'pdb')
         pdb_id_short = best_template_code[:4].lower()
         local_pdb_sample = os.path.join(smosh_base, f"{pdb_id_short}.pdb")
+        if not os.path.exists(local_pdb_sample) and os.path.isdir(static_pdb_dir):
+            for fname in os.listdir(static_pdb_dir):
+                if fname.lower() == f"{pdb_id_short}.pdb":
+                    local_pdb_sample = os.path.join(static_pdb_dir, fname)
+                    break
 
         downloaded_pdb_path = os.path.join(workdir, f"{pdb_id_short}.pdb")
         if os.path.exists(local_pdb_sample):
@@ -246,6 +320,12 @@ def run_pipeline(experiment_id):
 
         # ETAPA 4: Filtrar e isolar a cadeia de interesse no PDB
         downloaded_pdb = PDBFile(downloaded_pdb_path, 'r')
+        available_chains = downloaded_pdb.chains()
+        if available_chains and chain not in available_chains:
+            chain = available_chains[0]
+            experiment.template_chain = chain
+            experiment.save()
+
         new_pdb = downloaded_pdb_path + ".clean"
         with open(new_pdb, "w") as modified_pdb:
             hetatoms = {chain: downloaded_pdb.hetatomsInChain(chain)}
@@ -266,10 +346,13 @@ def run_pipeline(experiment_id):
         experiment.progress_percent = 50
         experiment.save()
 
+        # Evita colisão caso o código da sequência alvo seja idêntico ao código PDB de 4 letras do molde
+        target_code = f"{seq_name}_target" if seq_name.lower() == pdb_id_short.lower() else seq_name
+        target_pir_content = ensure_pir_format(target_code, experiment.sequence_text, force_code=True)
+
         unaligned_seq_path = os.path.join(workdir, 'unaligned_sequence.pir')
         with open(unaligned_seq_path, 'w') as outfile:
-            with open(seq_file_path, 'r') as infile1:
-                outfile.write(infile1.read().strip() + "\n")
+            outfile.write(target_pir_content.strip() + "\n")
             with open(os.path.join(workdir, template_seq_file), 'r') as infile2:
                 outfile.write(infile2.read().strip() + "\n")
 
@@ -287,19 +370,19 @@ def run_pipeline(experiment_id):
             with open(pap_path, 'rb') as f:
                 experiment.alignment_pap.save('ali.pap', ContentFile(f.read()), save=False)
 
-        experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] Alinhamento concluído com sucesso.\n"
-        experiment.current_step = 'Construindo modelos 3D com Modeller (BuildModelStep)'
+        num_models = experiment.num_models or 5
+        experiment.log_output += f"[{timezone.now().strftime('%H:%M:%S')}] Alinhamento 2D concluído com sucesso.\n"
+        experiment.current_step = f'Construindo {num_models} modelos 3D com Modeller (BuildModelStep)'
         experiment.progress_percent = 65
         experiment.save()
 
         # ETAPA 7: Construir modelos 3D com Modeller Automodel
-        modeling_manager = BuildModelStep(ali_path, downloaded_pdb_path)
+        modeling_manager = BuildModelStep(ali_path, downloaded_pdb_path, ending_model=num_models)
         modeling_manager.execute()
 
         # Coletar modelos PDB gerados
-        pdb_files = [f for f in os.listdir(workdir) if f.startswith(seq_name + '.B') and f.endswith('.pdb')]
+        pdb_files = [f for f in os.listdir(workdir) if f.startswith(target_code + '.B') and f.endswith('.pdb')]
         if not pdb_files:
-            # Tenta pegar qualquer .B*.pdb
             pdb_files = [f for f in os.listdir(workdir) if '.B9999' in f and f.endswith('.pdb')]
 
         best_model_path = None
@@ -376,7 +459,9 @@ def run_pipeline(experiment_id):
             loop_step = LoopRefinementStep(best_model_path, experiment.loop_start, experiment.loop_end)
             loop_step.execute()
 
-            loop_files = [f for f in os.listdir(workdir) if f.startswith(seq_name + '.BL') and f.endswith('.pdb')]
+            loop_files = [f for f in os.listdir(workdir) if f.startswith(target_code + '.BL') and f.endswith('.pdb')]
+            if not loop_files:
+                loop_files = [f for f in os.listdir(workdir) if '.BL' in f and f.endswith('.pdb')]
             best_loop_path = None
             best_loop_dope = None
 
@@ -441,3 +526,58 @@ def start_experiment_async(experiment_id):
     t = threading.Thread(target=run_pipeline, args=(experiment_id,), daemon=True)
     t.start()
     return t
+
+
+def start_model_building_async(experiment_id):
+    """Dispara a continuação da modelagem (após escolha do template) em segundo plano."""
+    t = threading.Thread(target=continue_model_building, args=(experiment_id,), daemon=True)
+    t.start()
+    return t
+
+
+def get_alignment_data(experiment):
+    """
+    Retorna os textos dos alinhamentos PAP e PIR e dados estatísticos do alinhamento 2D.
+    """
+    pap_text = ""
+    pir_text = ""
+    workdir = os.path.join(settings.MEDIA_ROOT, 'workspaces', str(experiment.uuid))
+
+    # Tenta ler de alignment_pap ou do workdir
+    if experiment.alignment_pap:
+        try:
+            with experiment.alignment_pap.open('r') as f:
+                pap_text = f.read()
+                if isinstance(pap_text, bytes):
+                    pap_text = pap_text.decode('utf-8', errors='ignore')
+        except Exception:
+            pass
+    if not pap_text and os.path.exists(os.path.join(workdir, 'ali.pap')):
+        try:
+            with open(os.path.join(workdir, 'ali.pap'), 'r', encoding='utf-8', errors='ignore') as f:
+                pap_text = f.read()
+        except Exception:
+            pass
+
+    if experiment.alignment_pir:
+        try:
+            with experiment.alignment_pir.open('r') as f:
+                pir_text = f.read()
+                if isinstance(pir_text, bytes):
+                    pir_text = pir_text.decode('utf-8', errors='ignore')
+        except Exception:
+            pass
+    if not pir_text and os.path.exists(os.path.join(workdir, 'ali.ali')):
+        try:
+            with open(os.path.join(workdir, 'ali.ali'), 'r', encoding='utf-8', errors='ignore') as f:
+                pir_text = f.read()
+        except Exception:
+            pass
+
+    conserved_count = pap_text.count('*') if pap_text else 0
+    return {
+        'pap_text': pap_text,
+        'pir_text': pir_text,
+        'has_alignment': bool(pap_text or pir_text),
+        'conserved_count': conserved_count,
+    }

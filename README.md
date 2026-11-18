@@ -15,7 +15,7 @@ Plataforma Web automatizada de alto desempenho desenvolvida em **Django (Python 
    - **Busca de Moldes**: Varredura automática contra a base de dados de estruturas homólogas `pdb_95`.
    - **Aquisição e Preparação de Estruturas**: Download de estruturas diretamente do Protein Data Bank (RCSB) e higienização/isolamento de cadeias e heteroátomos.
    - **Alinhamento 2D**: Alinhamento das sequências alvo e molde gerando arquivos PIR e PAP.
-   - **Modelagem Comparativa 3D**: Execução do Modeller Automodel gerando estruturas tridimensionais candidatas com a licença acadêmica oficial (`MODELIRANJE`).
+   - **Modelagem Comparativa 3D**: Execução do Modeller Automodel gerando estruturas tridimensionais candidatas com licença acadêmica configurada via `.env` (`KEY_MODELLER`).
    - **Avaliação de Qualidade e Energia**: Cálculo de escores **DOPE** (Discrete Optimized Protein Energy) e **GA341**, com geração automática do gráfico comparativo de perfil energético.
 
 3. **Visualizador Molecular 3D Integrado (3Dmol.js HTML5 / WebGL)**:
@@ -64,7 +64,7 @@ Projeto_modeller/
 │   │   ├── backends.py             # Autenticação via EmailBackend
 │   │   ├── forms.py                # Auto-detecção de sequência e cadastro sem username
 │   │   ├── models.py               # Modelos e propriedades de alinhamento
-│   │   ├── services.py             # Pipeline assíncrona com chave MODELIRANJE
+│   │   ├── services.py             # Pipeline assíncrona do Modeller
 │   │   └── views.py                # Controladores web
 │   └── modeller_web/settings.py    # Configurações do Django e Modeller
 ├── Dockerfile                       # Imagem Docker com Modeller 10.7 e Python 3

@@ -3,7 +3,9 @@ Catálogo e serviço de seleção diária/aleatória de estruturas 3D em destaqu
 para a página inicial do AutoModeller WEB.
 """
 
+import os
 import random
+from django.conf import settings
 from django.utils import timezone
 
 
@@ -337,3 +339,79 @@ def get_daily_featured_structures(target_date=None, count=4, seed_offset=0, is_p
     selected_raw = rng.sample(FEATURED_CATALOG, min(count, len(FEATURED_CATALOG)))
 
     return [format_structure(st, is_pt=is_pt) for st in selected_raw]
+
+
+AA3_TO_1 = {
+    'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C',
+    'GLN': 'Q', 'GLU': 'E', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I',
+    'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
+    'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V',
+    'MSE': 'M',
+}
+
+
+def extract_pir_from_pdb(pdb_path, seq_id):
+    """Extrai a sequência de aminoácidos da primeira cadeia proteica de um arquivo PDB e formata em PIR."""
+    if not os.path.exists(pdb_path):
+        return None
+
+    chains = {}
+    with open(pdb_path, 'r', encoding='utf-8', errors='ignore') as f:
+        for line in f:
+            if line.startswith('ATOM  ') and line[12:16].strip() == 'CA':
+                ch = line[21].strip() or 'A'
+                res_seq = line[22:27].strip()
+                res_name = line[17:20].strip()
+                aa = AA3_TO_1.get(res_name)
+                if aa:
+                    if ch not in chains:
+                        chains[ch] = {}
+                    if res_seq not in chains[ch]:
+                        chains[ch][res_seq] = aa
+
+    if not chains:
+        return None
+
+    best_chain = max(chains.keys(), key=lambda c: len(chains[c]))
+    raw_seq = ''.join(chains[best_chain].values())
+    if not raw_seq:
+        return None
+
+    wrapped_lines = [raw_seq[i:i + 75] for i in range(0, len(raw_seq), 75)]
+    wrapped_lines[-1] = wrapped_lines[-1] + '*'
+    seq_body = '\n'.join(wrapped_lines)
+
+    return f">P1;{seq_id}\nsequence:{seq_id}:::::::0.00: 0.00\n{seq_body}"
+
+
+def get_featured_structure_initial_data(struct_id, is_pt=True):
+    """Retorna os dados iniciais (sequência PIR, título e descrição) de uma estrutura em destaque."""
+    if not struct_id:
+        return None
+
+    target_item = None
+    for item in FEATURED_CATALOG:
+        if item["id"].lower() == struct_id.strip().lower():
+            target_item = item
+            break
+
+    if not target_item:
+        return None
+
+    code = target_item["id"]
+    pdb_path = os.path.join(settings.BASE_DIR, 'static', 'pdb', target_item["pdb_file"])
+    pir_text = extract_pir_from_pdb(pdb_path, code)
+    if not pir_text:
+        return None
+
+    name = target_item["name_pt"] if is_pt else target_item["name_en"]
+    desc = target_item["desc_pt"] if is_pt else target_item["desc_en"]
+
+    return {
+        'sequence_text': pir_text,
+        'sequence_name': code,
+        'sequence_type': 'PIR',
+        'title': f"Experimento: {code} ({name})" if is_pt else f"Experiment: {code} ({name})",
+        'description': desc,
+    }
+

@@ -222,6 +222,186 @@ class ExperimentViewsShouldDslTests(TestCase):
         len(response.context['featured_structures']) |should| equal_to(4)
         ('today_str' in response.context) |should| equal_to(True)
 
+    @patch('experiments.views.start_experiment_async')
+    def test_create_experiment_quick_mode_redirects_to_detail(self, mock_start_async):
+        payload = {
+            'title': 'Quick Mode Test',
+            'sequence_type': 'PIR',
+            'pipeline_mode': 'AUTO',
+            'sequence_text': '>P1;QuickProt\nsequence:QuickProt:::::::0.00: 0.00\nMSEAAHVLITGAAGQIGYIL*\n',
+        }
+        response = self.client.post('/experiments/new/', data=payload)
+        response.status_code |should| equal_to(302)
+        mock_start_async.called |should| equal_to(True)
+        exp = Experiment.objects.get(sequence_name='QuickProt')
+        response.url |should| equal_to(f'/experiments/{exp.uuid}/')
+
+    @patch('experiments.views.start_experiment_async')
+    def test_create_experiment_step_mode_redirects_to_template_select(self, mock_start_async):
+        payload = {
+            'title': 'Step Parameter Mode Test',
+            'sequence_type': 'PIR',
+            'pipeline_mode': 'STEP',
+            'sequence_text': '>P1;StepProt\nsequence:StepProt:::::::0.00: 0.00\nMSEAAHVLITGAAGQIGYIL*\n',
+        }
+        response = self.client.post('/experiments/new/', data=payload)
+        response.status_code |should| equal_to(302)
+        mock_start_async.called |should| equal_to(True)
+        exp = Experiment.objects.get(sequence_name='StepProt')
+        response.url |should| equal_to(f'/experiments/{exp.uuid}/select-template/')
+
+    @patch('experiments.views.start_model_building_async')
+    def test_template_select_flow_and_submission(self, mock_build_async):
+        exp = Experiment.objects.create(
+            title="Interactive Selection Test",
+            sequence_name="SelectProt",
+            sequence_text="MSEAAHVLITGAAGQIGYIL*",
+            pipeline_mode="STEP",
+            status="AWAITING_TEMPLATE",
+            current_step="Aguardando seleção do molde homólogo"
+        )
+        cand1 = TemplateCandidate.objects.create(experiment=exp, code="1bdm", chain="A", identity=45.2, is_selected=True)
+        cand2 = TemplateCandidate.objects.create(experiment=exp, code="1smk", chain="A", identity=38.1, is_selected=False)
+
+        # GET da página de seleção
+        get_res = self.client.get(f'/experiments/{exp.uuid}/select-template/')
+        get_res.status_code |should| equal_to(200)
+        len(get_res.context['candidates']) |should| equal_to(2)
+
+        # POST confirmando seleção
+        post_payload = {
+            'template_code': '1smk',
+            'template_chain': 'A',
+            'num_models': 6,
+            'enable_loop_refinement': True,
+            'loop_start': 15,
+            'loop_end': 25,
+        }
+        post_res = self.client.post(f'/experiments/{exp.uuid}/select-template/', data=post_payload)
+        post_res.status_code |should| equal_to(302)
+        post_res.url |should| equal_to(f'/experiments/{exp.uuid}/')
+        mock_build_async.called |should| equal_to(True)
+
+        exp.refresh_from_db()
+        exp.selected_template |should| equal_to('1SMK')
+        exp.num_models |should| equal_to(6)
+        exp.enable_loop_refinement |should| equal_to(True)
+        exp.loop_start |should| equal_to(15)
+        exp.loop_end |should| equal_to(25)
+
+    def test_alignment_data_and_status_api(self):
+        from django.core.files.base import ContentFile
+        from experiments.services import get_alignment_data
+
+        exp = Experiment.objects.create(
+            title="Alignment Test",
+            sequence_name="AlignProt",
+            sequence_text="MSEAAHVLITGAAGQIGYIL*",
+            status="RUNNING",
+            selected_template="1BDM"
+        )
+        sample_pap = "_aln.pos 10 20\nTarget MSEAAH\n1BDM   M-EAAH\n_consrvd * ****"
+        sample_pir = ">P1;AlignProt\nsequence:AlignProt:::::::0.00: 0.00\nMSEAAH*\n>P1;1BDM\nstructureX:1BDM:0:A:+10:A::::\nM-EAAH*\n"
+
+        exp.alignment_pap.save('test_ali.pap', ContentFile(sample_pap.encode('utf-8')))
+        exp.alignment_pir.save('test_ali.ali', ContentFile(sample_pir.encode('utf-8')))
+        exp.save()
+
+        data = get_alignment_data(exp)
+        data['has_alignment'] |should| equal_to(True)
+        data['conserved_count'] |should| equal_to(5)
+        data['pap_text'] |should| include('_aln.pos')
+
+        # API de status
+        res = self.client.get(f'/experiments/{exp.uuid}/status/')
+        res.status_code |should| equal_to(200)
+        json_data = res.json()
+        json_data['alignment_data']['has_alignment'] |should| equal_to(True)
+        json_data['alignment_data']['conserved_count'] |should| equal_to(5)
+        json_data['selected_template'] |should| equal_to('1BDM')
+
+    def test_featured_structure_prepopulates_experiment_form(self):
+        res = self.client.get('/experiments/new/?structure=1crn')
+        res.status_code |should| equal_to(200)
+        form = res.context['form']
+        form.initial['sequence_name'] |should| equal_to('1crn')
+        form.initial['sequence_text'] |should| include('>P1;1crn')
+        form.initial['sequence_text'] |should| include('TTCCPSIVARSNFNVCRLPGTPEAICATYT')
+
+    def test_privacy_and_cookie_policy_pages_and_security_headers(self):
+        res_privacy = self.client.get('/privacy/')
+        res_privacy.status_code |should| equal_to(200)
+        res_privacy.content.decode('utf-8') |should| include('LGPD')
+        res_privacy['X-Content-Type-Options'] |should| equal_to('nosniff')
+        res_privacy['X-Frame-Options'] |should| equal_to('DENY')
+        res_privacy['Content-Security-Policy'] |should| include("default-src 'self'")
+
+        res_cookies = self.client.get('/cookies/')
+        res_cookies.status_code |should| equal_to(200)
+        res_cookies.content.decode('utf-8') |should| include('csrftoken')
+        res_cookies.content.decode('utf-8') |should| include('sessionid')
+
+    def test_open_redirect_protection_in_set_language(self):
+        res = self.client.get('/set-language/?lang=pt&next=https://evil-attacker.example.com/phishing')
+        res.status_code |should| equal_to(302)
+        res.url |should| equal_to('/')
+
+        res_proto = self.client.get('/set-language/?lang=pt&next=//evil-attacker.example.com')
+        res_proto.status_code |should| equal_to(302)
+        res_proto.url |should| equal_to('/')
+
+    def test_security_upload_and_xss_sanitization(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        # Rejeita extensão maliciosa (.php)
+        bad_file = SimpleUploadedFile("shell.php", b"<?php system($_GET['cmd']); ?>")
+        form_bad = ExperimentCreateForm(data={'sequence_type': 'PIR'}, files={'sequence_file': bad_file})
+        form_bad.is_valid() |should| equal_to(False)
+
+        # Rejeita payload binário com null bytes disfarçado de .pir
+        bin_file = SimpleUploadedFile("malware.pir", b">P1;Test\x00\x00BINARY_PAYLOAD")
+        form_bin = ExperimentCreateForm(data={'sequence_type': 'PIR'}, files={'sequence_file': bin_file})
+        form_bin.is_valid() |should| equal_to(False)
+
+        # Remove tags XSS do título e descrição
+        form_xss = ExperimentCreateForm(data={
+            'title': '<script>alert(1)</script>Safe Title',
+            'description': '<img src=x onerror=alert(1)>Safe Desc',
+            'sequence_type': 'FASTA',
+            'sequence_text': '>MyProt\nMSEAAHVLITGAAGQIGYIL*\n',
+        })
+        form_xss.is_valid() |should| equal_to(True)
+        form_xss.cleaned_data['title'] |should| equal_to('alert(1)Safe Title')
+        form_xss.cleaned_data['description'] |should| equal_to('Safe Desc')
+
+    def test_admin_access_restricted_to_superuser_only(self):
+        # 1. Visitante anônimo é redirecionado para a tela de login do admin
+        res_anon = self.client.get('/admin/')
+        res_anon.status_code |should| equal_to(302)
+        res_anon.url |should| include('/admin/login/')
+
+        # 2. Usuário comum cadastrado no site NÃO tem acesso ao painel /admin/
+        normal_user = User.objects.create_user(
+            username='pesquisador_comum',
+            email='pesquisador@teste.com',
+            password='StrongPassword123!'
+        )
+        self.client.force_login(normal_user)
+        res_normal = self.client.get('/admin/')
+        res_normal.status_code |should| equal_to(302)
+        res_normal.url |should| include('/admin/login/')
+
+        # 3. Apenas Superusuário (is_staff=True, is_superuser=True) consegue acessar
+        admin_user = User.objects.create_superuser(
+            username='admin_master',
+            email='admin@automodeller.org',
+            password='SuperSecretAdminPass123!'
+        )
+        self.client.force_login(admin_user)
+        res_admin = self.client.get('/admin/')
+        res_admin.status_code |should| equal_to(200)
+
 
 if __name__ == '__main__':
     unittest.main()
+

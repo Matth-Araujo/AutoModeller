@@ -7,6 +7,7 @@ class Experiment(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pendente'),
         ('RUNNING', 'Em Execução'),
+        ('AWAITING_TEMPLATE', 'Aguardando Seleção de Molde'),
         ('COMPLETED', 'Concluído'),
         ('FAILED', 'Falhou'),
     ]
@@ -17,8 +18,8 @@ class Experiment(models.Model):
     ]
 
     PIPELINE_MODES = [
-        ('AUTO', 'Automático (Executar Pipeline Completa)'),
-        ('STEP', 'Passo a Passo (Interativo)'),
+        ('AUTO', 'Modelagem Rápida (Totalmente Automática)'),
+        ('STEP', 'Modelagem com Parâmetros (Seleção de Molde Interativa)'),
     ]
 
     uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -35,14 +36,14 @@ class Experiment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     current_step = models.CharField(max_length=150, default='Aguardando início')
     progress_percent = models.IntegerField(default=0)
-    pipeline_mode = models.CharField(max_length=20, choices=PIPELINE_MODES, default='AUTO')
+    pipeline_mode = models.CharField(max_length=20, choices=PIPELINE_MODES, default='AUTO', blank=True)
 
     # Selected template info
     selected_template = models.CharField(max_length=50, blank=True, default='')
     template_chain = models.CharField(max_length=10, default='A')
 
     # Modeling parameters
-    num_models = models.IntegerField(default=5)
+    num_models = models.IntegerField(default=5, blank=True)
     enable_loop_refinement = models.BooleanField(default=False)
     loop_start = models.IntegerField(null=True, blank=True)
     loop_end = models.IntegerField(null=True, blank=True)

@@ -16,8 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Baixa e instala o Modeller 10.7 com licença acadêmica oficial
-ARG MODELLER_KEY="MODELIRANJE"
+# Baixa e instala o Modeller 10.7 (chave fornecida via --build-arg MODELLER_KEY=...)
+# Registre-se em https://salilab.org/modeller/registration.html para obter sua chave gratuita
+ARG MODELLER_KEY=""
 RUN wget -q https://salilab.org/modeller/10.7/modeller_10.7-1_amd64.deb -O /tmp/modeller.deb && \
     KEY_MODELLER="${MODELLER_KEY}" dpkg -i /tmp/modeller.deb && \
     rm /tmp/modeller.deb
