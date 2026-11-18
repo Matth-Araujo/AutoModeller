@@ -3,9 +3,11 @@ import sys
 import shutil
 import zipfile
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import close_old_connections
 from django.utils import timezone
 
 from .models import Experiment, ExperimentResultModel, TemplateCandidate
@@ -30,7 +32,7 @@ from smosh.Exceptions.ModellerException import ModellerException
 modeller_key = os.environ.get('KEY_MODELLER') or getattr(settings, 'KEY_MODELLER', '')
 if modeller_key:
     os.environ['KEY_MODELLER'] = modeller_key
-mod_install = os.environ.get('MODINSTALL10v7', '/usr/lib/modeller10.7')
+mod_install = os.environ.get('MODINSTALL10v7') or getattr(settings, 'MODELLER_INSTALL', '/usr/lib/modeller10.7')
 mod_lib = os.path.join(mod_install, 'lib', 'x86_64-intel8')
 mod_py33 = os.path.join(mod_lib, 'python3.3')
 mod_modlib = os.path.join(mod_install, 'modlib')
@@ -521,18 +523,30 @@ def continue_model_building(experiment_id):
         experiment.save()
 
 
+_MAX_WORKERS = getattr(settings, 'MODELLER_MAX_WORKERS', max(2, min(4, os.cpu_count() or 2)))
+_MODELING_EXECUTOR = ThreadPoolExecutor(
+    max_workers=_MAX_WORKERS,
+    thread_name_prefix='automodeller_worker',
+)
+
+
+def _execute_with_db_cleanup(task_fn, experiment_id):
+    """Garante limpeza de conexões do banco antes e depois de cada tarefa da fila."""
+    close_old_connections()
+    try:
+        return task_fn(experiment_id)
+    finally:
+        close_old_connections()
+
+
 def start_experiment_async(experiment_id):
-    """Dispara a execução do experimento em uma thread em segundo plano."""
-    t = threading.Thread(target=run_pipeline, args=(experiment_id,), daemon=True)
-    t.start()
-    return t
+    """Enfileira a execução do experimento no pool controlado de workers em segundo plano."""
+    return _MODELING_EXECUTOR.submit(_execute_with_db_cleanup, run_pipeline, experiment_id)
 
 
 def start_model_building_async(experiment_id):
-    """Dispara a continuação da modelagem (após escolha do template) em segundo plano."""
-    t = threading.Thread(target=continue_model_building, args=(experiment_id,), daemon=True)
-    t.start()
-    return t
+    """Enfileira a continuação da modelagem (após escolha do template) no pool de workers."""
+    return _MODELING_EXECUTOR.submit(_execute_with_db_cleanup, continue_model_building, experiment_id)
 
 
 def get_alignment_data(experiment):

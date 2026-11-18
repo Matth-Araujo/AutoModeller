@@ -100,8 +100,15 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 30,
+        },
     }
 }
+
+MODELLER_MAX_WORKERS = int(
+    os.environ.get('MODELLER_MAX_WORKERS', max(2, min(4, os.cpu_count() or 2)))
+)
 
 
 # Password validation
@@ -196,7 +203,18 @@ KEY_MODELLER = os.environ.get('KEY_MODELLER', '')
 if KEY_MODELLER:
     os.environ['KEY_MODELLER'] = KEY_MODELLER
 
-MODELLER_INSTALL = os.environ.get('MODINSTALL10v7', '/usr/lib/modeller10.7')
+def _detect_modeller_install():
+    env_path = os.environ.get('MODINSTALL10v7') or os.environ.get('MODINSTALL')
+    if env_path and os.path.isdir(env_path):
+        return env_path
+    for ver in ('10.8', '10.7', '10.6', '10.5', '10.4'):
+        candidate = f'/usr/lib/modeller{ver}'
+        if os.path.isdir(candidate):
+            return candidate
+    return '/usr/lib/modeller10.7'
+
+
+MODELLER_INSTALL = _detect_modeller_install()
 MODELLER_LIB = os.path.join(MODELLER_INSTALL, 'lib', 'x86_64-intel8')
 MODELLER_PY33 = os.path.join(MODELLER_LIB, 'python3.3')
 MODELLER_MODLIB = os.path.join(MODELLER_INSTALL, 'modlib')
