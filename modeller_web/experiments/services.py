@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.db import close_old_connections
+from django.db import close_old_connections, transaction
 from django.utils import timezone
 
 from .models import Experiment, ExperimentResultModel, TemplateCandidate
@@ -156,7 +156,10 @@ def run_pipeline(experiment_id):
     9. (Opcional) Refinamento de Loop (LoopRefinementStep e EvaluateEnergyofLoopRefinementStep)
     10. Finalização e persistência no banco de dados
     """
-    experiment = Experiment.objects.get(id=experiment_id)
+    try:
+        experiment = Experiment.objects.get(id=experiment_id)
+    except Experiment.DoesNotExist:
+        return
     experiment.status = 'RUNNING'
     experiment.current_step = 'Iniciando ambiente de trabalho'
     experiment.progress_percent = 5
@@ -203,49 +206,56 @@ def run_pipeline(experiment_id):
         if not valid_candidates:
             valid_candidates = [c for c in candidates if c.name() and c.name().lower() != seq_name.lower()]
 
-        # Registrar candidatos a molde no banco
-        TemplateCandidate.objects.filter(experiment=experiment).delete()
-        for cand in valid_candidates[:15]:  # Armazena os 15 melhores
-            try:
-                cand_code = cand.name()
-                cand_id = float(cand.identity() or 0)
+        # Registrar candidatos a molde no banco de forma atômica
+        with transaction.atomic():
+            TemplateCandidate.objects.filter(experiment=experiment).delete()
+            candidate_objs = []
+            for cand in valid_candidates[:15]:  # Armazena os 15 melhores
+                try:
+                    cand_code = str(cand.name())[:50]
+                    cand_id = float(cand.identity() or 0)
+                    candidate_objs.append(
+                        TemplateCandidate(
+                            experiment=experiment,
+                            code=cand_code,
+                            chain=(cand_code[-1] if len(cand_code) >= 5 else 'A')[:10],
+                            identity=cand_id,
+                            is_selected=False,
+                        )
+                    )
+                except Exception:
+                    pass
+            if candidate_objs:
+                TemplateCandidate.objects.bulk_create(candidate_objs)
+
+            # Selecionar o melhor template (ou template escolhido pelo usuário)
+            if experiment.selected_template and experiment.selected_template.strip().lower() != seq_name.lower():
+                best_template_code = experiment.selected_template.strip()[:50]
+            elif valid_candidates:
+                better_profile = max(valid_candidates, key=lambda c: float(c.identity() or 0))
+                best_template_code = str(better_profile.name())[:50]
+                experiment.selected_template = best_template_code
+            else:
+                better_profile = profile_of_templates.getBetterProfile()
+                best_template_code = (better_profile.name() if better_profile and better_profile.name() else seq_name[:4]) or '1bdmA'
+                if len(best_template_code) == 4:
+                    best_template_code = best_template_code + 'A'
+                best_template_code = best_template_code[:50]
+                experiment.selected_template = best_template_code
                 TemplateCandidate.objects.create(
                     experiment=experiment,
-                    code=cand_code,
-                    chain=cand_code[-1] if len(cand_code) >= 5 else 'A',
-                    identity=cand_id,
-                    is_selected=False
+                    code=best_template_code,
+                    chain=(best_template_code[-1] if len(best_template_code) >= 5 else 'A')[:10],
+                    identity=100.0,
+                    is_selected=True
                 )
-            except Exception:
-                pass
 
-        # Selecionar o melhor template (ou template escolhido pelo usuário)
-        if experiment.selected_template and experiment.selected_template.strip().lower() != seq_name.lower():
-            best_template_code = experiment.selected_template.strip()
-        elif valid_candidates:
-            better_profile = max(valid_candidates, key=lambda c: float(c.identity() or 0))
-            best_template_code = better_profile.name()
-            experiment.selected_template = best_template_code
-        else:
-            better_profile = profile_of_templates.getBetterProfile()
-            best_template_code = (better_profile.name() if better_profile and better_profile.name() else seq_name[:4]) or '1bdmA'
-            if len(best_template_code) == 4:
-                best_template_code = best_template_code + 'A'
-            experiment.selected_template = best_template_code
-            TemplateCandidate.objects.create(
-                experiment=experiment,
-                code=best_template_code,
-                chain=best_template_code[-1] if len(best_template_code) >= 5 else 'A',
-                identity=100.0,
-                is_selected=True
-            )
+            # Marcar template selecionado no banco
+            TemplateCandidate.objects.filter(experiment=experiment, code=best_template_code).update(is_selected=True)
 
-        # Marcar template selecionado no banco
-        TemplateCandidate.objects.filter(experiment=experiment, code=best_template_code).update(is_selected=True)
-
-        chain = best_template_code[-1] if len(best_template_code) >= 5 else 'A'
-        experiment.template_chain = chain
-        experiment.save()
+            chain = (best_template_code[-1] if len(best_template_code) >= 5 else 'A')[:10]
+            experiment.template_chain = chain
+            experiment.save()
 
         if experiment.pipeline_mode == 'STEP':
             # Modo com Parâmetros / Passo a Passo:
@@ -268,7 +278,7 @@ def run_pipeline(experiment_id):
         experiment.save()
     except Exception as e:
         experiment.status = 'FAILED'
-        experiment.current_step = f'Erro: {str(e)}'
+        experiment.current_step = f'Erro: {str(e)}'[:150]
         experiment.error_message = str(e)
         experiment.log_output += f"\n[{timezone.now().strftime('%H:%M:%S')}] ERRO INESPERADO:\n{str(e)}\n"
         experiment.save()
@@ -280,7 +290,10 @@ def continue_model_building(experiment_id):
     baixa a estrutura PDB, limpa heteroátomos, alinha as sequências (AlignStep),
     constrói os modelos 3D (BuildModelStep) e calcula os perfis de energia DOPE.
     """
-    experiment = Experiment.objects.get(id=experiment_id)
+    try:
+        experiment = Experiment.objects.get(id=experiment_id)
+    except Experiment.DoesNotExist:
+        return
     experiment.status = 'RUNNING'
     experiment.save()
 
@@ -517,7 +530,7 @@ def continue_model_building(experiment_id):
         experiment.save()
     except Exception as e:
         experiment.status = 'FAILED'
-        experiment.current_step = f'Erro: {str(e)}'
+        experiment.current_step = f'Erro: {str(e)}'[:150]
         experiment.error_message = str(e)
         experiment.log_output += f"\n[{timezone.now().strftime('%H:%M:%S')}] ERRO INESPERADO:\n{str(e)}\n"
         experiment.save()

@@ -1,5 +1,7 @@
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth.models import User
+from django.db.models import Q
+
 
 class EmailBackend(ModelBackend):
     """
@@ -10,14 +12,16 @@ class EmailBackend(ModelBackend):
         email = kwargs.get('email') or username
         if not email or not password:
             return None
+        identifier = email.strip()
+        if not identifier:
+            return None
         try:
-            # Tenta encontrar o usuário pelo e-mail (case-insensitive)
-            user = User.objects.filter(email__iexact=email.strip()).first()
-            if not user:
-                # Fallback para o campo username
-                user = User.objects.filter(username__iexact=email.strip()).first()
-            if user and user.check_password(password):
-                return user
+            candidates = User.objects.filter(
+                Q(email__iexact=identifier) | Q(username__iexact=identifier)
+            ).distinct()
+            for user in candidates:
+                if user.check_password(password) and self.user_can_authenticate(user):
+                    return user
         except Exception:
             return None
         return None

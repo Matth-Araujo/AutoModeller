@@ -1,10 +1,13 @@
 import os
 import json
+import uuid as uuid_lib
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, FileResponse, Http404
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.views.decorators.http import require_GET, require_POST
 from django.conf import settings
 from django.utils import timezone
@@ -32,7 +35,20 @@ EGFKVNDWLREKLDFTEKDLFHEKEIALNHLAQGG*"""
 def _ensure_session_key(request):
     if not request.session.session_key:
         request.session.save()
-    return request.session.session_key
+    return request.session.session_key or ''
+
+
+def _parse_valid_uuids(raw_uuids):
+    """Filtra apenas UUIDs válidos da sessão para evitar ValidationError em queries ORM."""
+    valid = []
+    if not isinstance(raw_uuids, (list, tuple, set)):
+        return valid
+    for item in raw_uuids:
+        try:
+            valid.append(uuid_lib.UUID(str(item)))
+        except (ValueError, TypeError, AttributeError):
+            continue
+    return valid
 
 
 def _is_pt(request):
@@ -45,11 +61,12 @@ def home(request):
     session_key = _ensure_session_key(request)
     is_pt = _is_pt(request)
 
-    recent_experiments = []
     if request.user.is_authenticated:
         recent_experiments = Experiment.objects.filter(user=request.user)[:5]
+    elif session_key:
+        recent_experiments = Experiment.objects.filter(session_key=session_key, user__isnull=True)[:5]
     else:
-        recent_experiments = Experiment.objects.filter(session_key=session_key)[:5]
+        recent_experiments = Experiment.objects.none()
 
     today = timezone.localdate()
     today_str = today.strftime('%d/%m/%Y') if is_pt else today.strftime('%Y-%m-%d')
@@ -111,24 +128,25 @@ def experiment_create(request):
     if request.method == 'POST':
         form = ExperimentCreateForm(request.POST, request.FILES)
         if form.is_valid():
-            experiment = form.save(commit=False)
-            if request.user.is_authenticated:
-                experiment.user = request.user
-            else:
-                experiment.session_key = session_key
+            with transaction.atomic():
+                experiment = form.save(commit=False)
+                if request.user.is_authenticated:
+                    experiment.user = request.user
+                else:
+                    experiment.session_key = session_key
 
-            experiment.sequence_name = form.cleaned_data.get('sequence_name', 'TargetProt')
-            experiment.title = form.cleaned_data.get('title') or f"Modeling {experiment.sequence_name}"
-            experiment.status = 'PENDING'
-            experiment.current_step = 'Enfileirado' if _is_pt(request) else 'Queued'
-            experiment.save()
+                experiment.sequence_name = (form.cleaned_data.get('sequence_name') or 'TargetProt')[:100]
+                experiment.title = (form.cleaned_data.get('title') or f"Modeling {experiment.sequence_name}")[:200]
+                experiment.status = 'PENDING'
+                experiment.current_step = 'Enfileirado' if _is_pt(request) else 'Queued'
+                experiment.save()
 
             # Guardar lista de uuids na sessão para o convidado
-            guest_uuids = request.session.get('guest_experiment_uuids', [])
+            guest_uuids = [str(u) for u in _parse_valid_uuids(request.session.get('guest_experiment_uuids', []))]
             guest_uuids.append(str(experiment.uuid))
             request.session['guest_experiment_uuids'] = guest_uuids
 
-            # Disparar pipeline assíncrona
+            # Disparar pipeline assíncrona após o commit da transação
             start_experiment_async(experiment.id)
 
             if experiment.pipeline_mode == 'STEP':
@@ -183,23 +201,24 @@ def template_select(request, uuid):
                 final_template = '1BDM'
                 final_chain = 'A'
 
-            experiment.selected_template = final_template
-            experiment.template_chain = final_chain
+            with transaction.atomic():
+                experiment.selected_template = final_template[:50]
+                experiment.template_chain = final_chain[:10]
 
-            num_models = form.cleaned_data.get('num_models')
-            if num_models:
-                experiment.num_models = num_models
-            experiment.enable_loop_refinement = form.cleaned_data.get('enable_loop_refinement', False)
-            experiment.loop_start = form.cleaned_data.get('loop_start')
-            experiment.loop_end = form.cleaned_data.get('loop_end')
+                num_models = form.cleaned_data.get('num_models')
+                if num_models:
+                    experiment.num_models = num_models
+                experiment.enable_loop_refinement = form.cleaned_data.get('enable_loop_refinement', False)
+                experiment.loop_start = form.cleaned_data.get('loop_start')
+                experiment.loop_end = form.cleaned_data.get('loop_end')
 
-            # Atualiza flag is_selected nos candidatos
-            candidates.update(is_selected=False)
-            candidates.filter(code__iexact=final_template).update(is_selected=True)
+                # Atualiza flag is_selected nos candidatos de forma atômica
+                candidates.update(is_selected=False)
+                candidates.filter(code__iexact=final_template).update(is_selected=True)
 
-            experiment.status = 'PENDING'
-            experiment.current_step = 'Iniciando alinhamento e modelagem 3D' if is_pt else 'Starting alignment and 3D modeling'
-            experiment.save()
+                experiment.status = 'PENDING'
+                experiment.current_step = 'Iniciando alinhamento e modelagem 3D' if is_pt else 'Starting alignment and 3D modeling'
+                experiment.save()
 
             # Dispara a segunda etapa da pipeline (AlignStep -> BuildModelStep -> etc.)
             start_model_building_async(experiment.id)
@@ -298,10 +317,18 @@ def experiment_list(request):
     if request.user.is_authenticated:
         experiments = Experiment.objects.filter(user=request.user)
         # Verifica se há experimentos avulsos na sessão para permitir associação
-        guest_uuids = request.session.get('guest_experiment_uuids', [])
-        unclaimed_count = Experiment.objects.filter(uuid__in=guest_uuids, user__isnull=True).count()
+        valid_uuids = _parse_valid_uuids(request.session.get('guest_experiment_uuids', []))
+        claim_q = Q()
+        if valid_uuids:
+            claim_q |= Q(uuid__in=valid_uuids)
+        if session_key:
+            claim_q |= Q(session_key=session_key)
+        unclaimed_count = Experiment.objects.filter(claim_q, user__isnull=True).count() if claim_q else 0
+    elif session_key:
+        experiments = Experiment.objects.filter(session_key=session_key, user__isnull=True)
+        unclaimed_count = 0
     else:
-        experiments = Experiment.objects.filter(session_key=session_key)
+        experiments = Experiment.objects.none()
         unclaimed_count = 0
 
     return render(request, 'experiments/experiment_list.html', {
@@ -315,10 +342,18 @@ def experiment_list(request):
 def experiment_claim(request):
     """Associa experimentos avulsos criados nesta sessão ao usuário recém-logado."""
     session_key = _ensure_session_key(request)
-    guest_uuids = request.session.get('guest_experiment_uuids', [])
+    valid_uuids = _parse_valid_uuids(request.session.get('guest_experiment_uuids', []))
 
-    claimed = Experiment.objects.filter(uuid__in=guest_uuids, user__isnull=True).update(user=request.user)
-    Experiment.objects.filter(session_key=session_key, user__isnull=True).update(user=request.user)
+    claim_q = Q()
+    if valid_uuids:
+        claim_q |= Q(uuid__in=valid_uuids)
+    if session_key:
+        claim_q |= Q(session_key=session_key)
+
+    claimed = 0
+    if claim_q:
+        with transaction.atomic():
+            claimed = Experiment.objects.filter(claim_q, user__isnull=True).update(user=request.user)
 
     request.session['guest_experiment_uuids'] = []
     if _is_pt(request):
@@ -332,12 +367,20 @@ def experiment_claim(request):
 def experiment_retry(request, uuid):
     """Reinicia a execução de um experimento."""
     experiment = get_object_or_404(Experiment, uuid=uuid)
-    experiment.status = 'PENDING'
-    experiment.current_step = 'Reiniciando' if _is_pt(request) else 'Restarting'
-    experiment.progress_percent = 0
-    experiment.error_message = ''
-    experiment.log_output += f"\n--- RESTARTING EXPERIMENT AT {settings.TIME_ZONE} ---\n"
-    experiment.save()
+    if experiment.status == 'RUNNING':
+        if _is_pt(request):
+            messages.warning(request, "Este experimento já está em execução no momento.")
+        else:
+            messages.warning(request, "This experiment is already running.")
+        return redirect('experiment_detail', uuid=experiment.uuid)
+
+    with transaction.atomic():
+        experiment.status = 'PENDING'
+        experiment.current_step = 'Reiniciando' if _is_pt(request) else 'Restarting'
+        experiment.progress_percent = 0
+        experiment.error_message = ''
+        experiment.log_output += f"\n--- RESTARTING EXPERIMENT AT {timezone.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n"
+        experiment.save()
 
     start_experiment_async(experiment.id)
     if _is_pt(request):
@@ -365,22 +408,37 @@ def experiment_download_zip(request, uuid):
 
 
 def register_view(request):
-    """Cadastro de novo usuário."""
+    """Cadastro de novo usuário com proteção contra IntegrityError e duplicidade no banco."""
     if request.user.is_authenticated:
         return redirect('experiment_list')
 
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user, backend='experiments.backends.EmailBackend')
+            old_session_key = request.session.session_key
+            valid_uuids = _parse_valid_uuids(request.session.get('guest_experiment_uuids', []))
+            try:
+                with transaction.atomic():
+                    user = form.save()
 
-            # Reivindica experimentos avulsos da sessão
-            session_key = request.session.session_key
-            guest_uuids = request.session.get('guest_experiment_uuids', [])
-            Experiment.objects.filter(uuid__in=guest_uuids, user__isnull=True).update(user=user)
-            if session_key:
-                Experiment.objects.filter(session_key=session_key, user__isnull=True).update(user=user)
+                    # Reivindica experimentos avulsos da sessão na mesma transação
+                    claim_q = Q()
+                    if valid_uuids:
+                        claim_q |= Q(uuid__in=valid_uuids)
+                    if old_session_key:
+                        claim_q |= Q(session_key=old_session_key)
+                    if claim_q:
+                        Experiment.objects.filter(claim_q, user__isnull=True).update(user=user)
+            except IntegrityError:
+                err_msg = (
+                    "Já existe uma conta cadastrada com este endereço de e-mail. Tente fazer login."
+                    if _is_pt(request)
+                    else "An account with this email address already exists. Please sign in."
+                )
+                form.add_error('email', err_msg)
+                return render(request, 'registration/register.html', {'form': form})
+
+            login(request, user, backend='experiments.backends.EmailBackend')
             request.session['guest_experiment_uuids'] = []
 
             if _is_pt(request):

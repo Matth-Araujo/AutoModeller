@@ -15,7 +15,13 @@
                 </h4>
             </div>
             <div class="card-body p-4">
-                <form method="post" novalidate>
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger small py-2">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+                <form method="post" id="register-form" novalidate>
                     {% csrf_token %}
                     
                     {% for field in form %}
@@ -32,7 +38,7 @@
                     {% endfor %}
 
                     <div class="d-grid mb-3">
-                        <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                        <button type="submit" id="btn-register-submit" class="btn btn-primary btn-lg shadow-sm">
                             {% if is_pt %}Finalizar Cadastro{% else %}Complete Registration{% endif %}
                         </button>
                     </div>
@@ -49,4 +55,20 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (function() {
+        const form = document.getElementById('register-form');
+        const btn = document.getElementById('btn-register-submit');
+        if (form && btn) {
+            form.addEventListener('submit', function() {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' +
+                    ({{ is_pt|yesno:"true,false" }} ? 'Cadastrando...' : 'Creating account...');
+            });
+        }
+    })();
+</script>
 {% endblock %}

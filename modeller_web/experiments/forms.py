@@ -3,6 +3,7 @@ import re
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
+from django.db.models import Q
 from django.utils.html import strip_tags
 from .models import Experiment
 
@@ -262,20 +263,32 @@ class TemplateSelectForm(forms.Form):
             return 'A'
         return val
 
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('enable_loop_refinement'):
+            start = cleaned_data.get('loop_start')
+            end = cleaned_data.get('loop_end')
+            if start is not None and end is not None and (start < 1 or end < start):
+                raise forms.ValidationError("Invalid loop refinement range: end residue must be greater than or equal to start residue.")
+        return cleaned_data
+
 
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(
         required=True,
+        max_length=150,
         label="Email Address",
         widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'user@example.com'})
     )
     first_name = forms.CharField(
         required=True,
+        max_length=150,
         label="Full Name",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Your Name'})
     )
     last_name = forms.CharField(
         required=False,
+        max_length=150,
         label="Last Name (optional)",
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Your Last Name'})
     )
@@ -289,19 +302,37 @@ class RegisterForm(UserCreationForm):
         for field in self.fields.values():
             field.widget.attrs.update({'class': 'form-control'})
 
+    def clean_first_name(self):
+        return strip_tags(self.cleaned_data.get('first_name', '')).strip()[:150]
+
+    def clean_last_name(self):
+        return strip_tags(self.cleaned_data.get('last_name', '')).strip()[:150]
+
     def clean_email(self):
         email = self.cleaned_data.get('email', '').strip().lower()
         if not email:
             raise forms.ValidationError("Email address is required.")
-        if User.objects.filter(email__iexact=email).exists():
+        if len(email) > 150:
+            raise forms.ValidationError("Email address must be at most 150 characters long.")
+        # Verifica tanto email quanto username (case-insensitive) para evitar IntegrityError (UNIQUE constraint)
+        if User.objects.filter(Q(email__iexact=email) | Q(username__iexact=email)).exists():
             raise forms.ValidationError("An account with this email address already exists.")
         return email
+
+    def _post_clean(self):
+        email = self.cleaned_data.get('email', '').strip().lower()
+        if email:
+            self.instance.email = email
+            self.instance.username = email
+        super()._post_clean()
 
     def save(self, commit=True):
         user = super().save(commit=False)
         email = self.cleaned_data['email'].strip().lower()
         user.email = email
         user.username = email
+        user.first_name = self.cleaned_data.get('first_name', '').strip()[:150]
+        user.last_name = self.cleaned_data.get('last_name', '').strip()[:150]
         if commit:
             user.save()
         return user

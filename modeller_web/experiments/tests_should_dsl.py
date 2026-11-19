@@ -414,6 +414,47 @@ class ExperimentViewsShouldDslTests(TestCase):
         res.url |should| equal_to('/experiments/')
         User.objects.filter(email='novo_pesquisador@universidade.edu.br').exists() |should| equal_to(True)
 
+    def test_register_duplicate_username_or_email_does_not_raise_integrity_error(self):
+        # Cria usuário onde apenas username == email (sem preencher campo email)
+        User.objects.create_user(
+            username='duplicado@universidade.edu.br',
+            email='',
+            password='OldPassword123!'
+        )
+        payload = {
+            'first_name': 'Outro Usuario',
+            'last_name': '',
+            'email': 'DUPLICADO@universidade.edu.br',
+            'password1': 'SenhaForte2026!#',
+            'password2': 'SenhaForte2026!#',
+        }
+        res = self.client.post('/register/', data=payload)
+        res.status_code |should| equal_to(200)
+        res.context['form'].errors |should| include('email')
+
+    def test_corrupted_guest_uuids_in_session_do_not_crash_db_queries(self):
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['guest_experiment_uuids'] = ['not-a-valid-uuid', '', None, '12345']
+        session.save()
+
+        res_list = self.client.get('/experiments/')
+        res_list.status_code |should| equal_to(200)
+
+        res_claim = self.client.get('/experiments/claim/')
+        res_claim.status_code |should| equal_to(302)
+
+    def test_inactive_user_cannot_login_via_email_backend(self):
+        from django.contrib.auth import authenticate
+        inactive = User.objects.create_user(
+            username='inativo@universidade.edu.br',
+            email='inativo@universidade.edu.br',
+            password='ValidPassword123!',
+            is_active=False,
+        )
+        auth_res = authenticate(username='inativo@universidade.edu.br', password='ValidPassword123!')
+        auth_res |should| equal_to(None)
+
 
 if __name__ == '__main__':
     unittest.main()
