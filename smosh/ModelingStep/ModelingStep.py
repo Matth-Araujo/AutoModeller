@@ -13,18 +13,31 @@ class ModelingStep(ABC):
 		self.__prepare_workdir_and_copy_input_files__()
 
 	def execute(self):
-		self.make_script()
-		processo = Modeller_Caller()
-		if processo.run(self.workdir + '/step.py'):
-			with open(os.path.join(self.workdir, "out.log"), 'r') as generated_log:
-				text_of_generated_log = generated_log.read()
-			with open(os.path.join(self.workdir, "error.log"), 'r') as generated_error_log:
-				text_of_generated_error_log = generated_error_log.read()
-			raise ModellerException(
-				"--- out.log ---\n" + text_of_generated_log +
-				"\n--- error.log ---\n" + text_of_generated_error_log
-			)
-		self.pos_execution()
+		try:
+			self.make_script()
+			processo = Modeller_Caller()
+			if processo.run(self.workdir + '/step.py'):
+				out_log_path = os.path.join(self.workdir, "out.log")
+				err_log_path = os.path.join(self.workdir, "error.log")
+				text_of_generated_log = ""
+				text_of_generated_error_log = ""
+				if os.path.exists(out_log_path):
+					with open(out_log_path, 'r', encoding='utf-8', errors='ignore') as generated_log:
+						text_of_generated_log = generated_log.read()
+				if os.path.exists(err_log_path):
+					with open(err_log_path, 'r', encoding='utf-8', errors='ignore') as generated_error_log:
+						text_of_generated_error_log = generated_error_log.read()
+				if not text_of_generated_error_log and getattr(processo, 'last_stderr', ''):
+					text_of_generated_error_log = processo.last_stderr
+				raise ModellerException(
+					"--- out.log ---\n" + text_of_generated_log +
+					"\n--- error.log ---\n" + text_of_generated_error_log
+				)
+			self.pos_execution()
+		finally:
+			# Limpa diretório temporário em /tmp para evitar lotação de disco no servidor
+			if getattr(self, 'workdir', None) and os.path.isdir(self.workdir):
+				shutil.rmtree(self.workdir, ignore_errors=True)
 
 	def pos_execution(self): 
 		self.__copy_files_to_output_dir__()

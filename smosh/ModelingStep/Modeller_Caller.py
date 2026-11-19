@@ -3,13 +3,27 @@ import subprocess
 import sys
 
 
+def _detect_modeller_install():
+    env_path = os.environ.get("MODINSTALL10v7") or os.environ.get("MODINSTALL")
+    if env_path and os.path.isdir(env_path):
+        return env_path
+    for ver in ("10.8", "10.7", "10.6", "10.5", "10.4"):
+        candidate = f"/usr/lib/modeller{ver}"
+        if os.path.isdir(candidate):
+            return candidate
+    return "/usr/lib/modeller10.7"
+
+
 def get_modeller_env():
-    """Retorna ambiente com todos os caminhos necessários para o Modeller 10.7 no Python 3."""
+    """Retorna ambiente com todos os caminhos necessários para o Modeller (10.4-10.8) no Python 3."""
     env = os.environ.copy()
     if "KEY_MODELLER" in os.environ:
         env["KEY_MODELLER"] = os.environ["KEY_MODELLER"]
 
-    mod_install = os.environ.get("MODINSTALL10v7", "/usr/lib/modeller10.7")
+    # Garante backend sem interface gráfica para Matplotlib em servidores Linux headless
+    env.setdefault("MPLBACKEND", "Agg")
+
+    mod_install = _detect_modeller_install()
     mod_lib = os.path.join(mod_install, "lib", "x86_64-intel8")
     mod_py33 = os.path.join(mod_lib, "python3.3")
     mod_modlib = os.path.join(mod_install, "modlib")
@@ -42,8 +56,22 @@ class Modeller_Caller:
         else:
             self.modeller_executable = sys.executable
         self.process = None
+        self.last_stderr = ""
 
-    def run(self, script):
+    def run(self, script, timeout=900):
         env = get_modeller_env()
-        process = subprocess.Popen([self.modeller_executable, script], env=env)
-        return process.wait()
+        process = subprocess.Popen(
+            [self.modeller_executable, script],
+            env=env,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            _, stderr_out = process.communicate(timeout=timeout)
+            self.last_stderr = stderr_out or ""
+            return process.returncode
+        except subprocess.TimeoutExpired:
+            process.kill()
+            _, stderr_out = process.communicate()
+            self.last_stderr = (stderr_out or "") + f"\nModeller step timed out after {timeout}s."
+            return 124

@@ -16,7 +16,9 @@ class EvaluateEnergyofLoopRefinementStep(ModelingStep):
 		super(EvaluateEnergyofLoopRefinementStep, self).__init__()
 		
 	def __get_script__(self):
-		return """import matplotlib.pyplot as plt
+		return """import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 import modeller
 import os
@@ -67,7 +69,7 @@ ax.plot(template, color='green', linewidth=2, label='Template')
 ax.plot(loop_refine, color='blue', linewidth=2, label='Loop Refinement')
 handles, labels = ax.get_legend_handles_labels()
 lgd = ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5,-0.1))
-ax.grid('on')
+ax.grid(True)
 fig.savefig('dope_profile_loop', bbox_extra_artists=(lgd,), bbox_inches='tight')
 
 

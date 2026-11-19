@@ -23,8 +23,8 @@ class SecurityHeadersAndRateLimitMiddleware:
     RATE_LIMITS = {
         'admin_post': (5, 60),       # Máx 5 tentativas de login no painel /admin por minuto por IP
         'auth_post': (15, 60),       # Máx 15 tentativas de login/cadastro por minuto por IP
-        'experiment_post': (20, 60), # Máx 20 disparos de modelagem por minuto por IP
-        'general_req': (240, 60),    # Máx 240 requisições gerais por minuto por IP
+        'experiment_post': (30, 60), # Máx 30 disparos de modelagem por minuto por IP
+        'general_req': (600, 60),    # Máx 600 requisições gerais por minuto por IP (compatível com NAT de laboratórios)
     }
 
     def __init__(self, get_response):
@@ -45,6 +45,14 @@ class SecurityHeadersAndRateLimitMiddleware:
         ip = get_client_ip(request)
         path = request.path.lower()
         method = request.method.upper()
+
+        # Isenta arquivos estáticos, mídia e polling de status (GET) para não bloquear laboratórios sob NAT compartilhado
+        if method == 'GET' and (
+            path.startswith('/static/')
+            or path.startswith('/media/')
+            or path.endswith('/status/')
+        ):
+            return None
 
         bucket = 'general_req'
         if method == 'POST':

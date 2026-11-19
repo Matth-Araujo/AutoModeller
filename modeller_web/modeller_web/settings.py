@@ -189,13 +189,21 @@ X_FRAME_OPTIONS = 'DENY'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
 
-if not DEBUG:
+# Configurações de HTTPS (ative DJANGO_USE_HTTPS=True somente quando houver certificado SSL/HTTPS no servidor)
+# Se o servidor rodar via HTTP na rede interna da universidade (ex: http://172.20.x.x:10000), mantenha False
+# para evitar bloqueio de cookies de sessão e erro 403 CSRF mesmo com DJANGO_DEBUG=False.
+USE_HTTPS = os.environ.get('DJANGO_USE_HTTPS', 'False').lower() in ('true', '1', 'yes')
+if not DEBUG and USE_HTTPS:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1', 'yes')
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+_csrf_origins = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '')
+if _csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
 
 # Configuração do ambiente Modeller (chave e caminhos das bibliotecas nativas C / Python)
 # Para obter sua licença acadêmica gratuita, registre-se em https://salilab.org/modeller/registration.html
@@ -215,6 +223,8 @@ def _detect_modeller_install():
 
 
 MODELLER_INSTALL = _detect_modeller_install()
+os.environ['MODINSTALL10v7'] = MODELLER_INSTALL
+os.environ.setdefault('MPLBACKEND', 'Agg')
 MODELLER_LIB = os.path.join(MODELLER_INSTALL, 'lib', 'x86_64-intel8')
 MODELLER_PY33 = os.path.join(MODELLER_LIB, 'python3.3')
 MODELLER_MODLIB = os.path.join(MODELLER_INSTALL, 'modlib')

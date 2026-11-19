@@ -13,7 +13,9 @@ class EvaluateEnergy(ModelingStep):
 		super(EvaluateEnergy, self).__init__()
 		
 	def __get_script__(self):
-		return """import matplotlib.pyplot as plt
+		return """import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 import modeller
 import os
@@ -61,7 +63,7 @@ ax.plot(model, color='red', linewidth=2, label='Model')
 ax.plot(template, color='green', linewidth=2, label='Template')
 handles, labels = ax.get_legend_handles_labels()
 lgd = ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5,-0.1))
-ax.grid('on')
+ax.grid(True)
 fig.savefig('dope_profile_loop', bbox_extra_artists=(lgd,), bbox_inches='tight')
 
 
