@@ -1,6 +1,6 @@
 """
 Catálogo e serviço de seleção diária/aleatória de estruturas 3D em destaque
-para a página inicial do AutoModeller WEB.
+para a página inicial do AutoMoldel WEB.
 """
 
 import os
@@ -19,10 +19,10 @@ FEATURED_CATALOG = [
         "badge_pt": "Modelo Homólogo",
         "badge_en": "Homology Model",
         "badge_class": "bg-primary",
-        "desc_pt": "Enzima metabólica modelada automaticamente por homologia comparativa a partir do molde cristalográfico 1bdm. Otimizada via restrições espaciais e avaliação de energia DOPE no AutoModeller WEB.",
-        "desc_en": "Metabolic enzyme comparative model built automatically by AutoModeller WEB from template 1bdm. Optimized with spatial restraint satisfaction and DOPE energy assessment.",
-        "type_pt": "Modelo AutoModeller 3D",
-        "type_en": "AutoModeller 3D Model",
+        "desc_pt": "Enzima metabólica modelada automaticamente por homologia comparativa a partir do molde cristalográfico 1bdm. Otimizada via restrições espaciais e avaliação de energia DOPE no AutoMoldel WEB.",
+        "desc_en": "Metabolic enzyme comparative model built automatically by AutoMoldel WEB from template 1bdm. Optimized with spatial restraint satisfaction and DOPE energy assessment.",
+        "type_pt": "Modelo AutoMoldel 3D",
+        "type_en": "AutoMoldel 3D Model",
         "metric_pt": "-38421.5 DOPE (Ótimo)",
         "metric_en": "-38421.5 DOPE (Optimal)",
         "is_sample": True,

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}
-    {% if is_pt %}AutoModeller WEB - Modelagem Molecular 3D Automatizada{% else %}AutoModeller WEB - Automated 3D Molecular Modeling{% endif %}
+    {% if is_pt %}AutoMoldel WEB - Modelagem Molecular 3D Automatizada{% else %}AutoMoldel WEB - Automated 3D Molecular Modeling{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -26,9 +26,9 @@
             </h1>
             <p class="lead mb-4 opacity-90">
                 {% if is_pt %}
-                    Execute toda a esteira do Modeller (busca de templates homólogos, alinhamento, construção dos modelos e perfil energético DOPE) de forma 100% automatizada no <strong>AutoModeller WEB</strong>.
+                    Execute toda a esteira do Modeller (busca de templates homólogos, alinhamento, construção dos modelos e perfil energético DOPE) de forma 100% automatizada no <strong>AutoMoldel WEB</strong>.
                 {% else %}
-                    Run the entire Modeller pipeline (homologous template search, sequence alignment, 3D model building, and DOPE energy profiling) 100% automatically in <strong>AutoModeller WEB</strong>.
+                    Run the entire Modeller pipeline (homologous template search, sequence alignment, 3D model building, and DOPE energy profiling) 100% automatically in <strong>AutoMoldel WEB</strong>.
                 {% endif %}
             </p>
             <div class="d-flex flex-wrap gap-2">
@@ -159,14 +159,14 @@
                     <div class="text-muted fst-italic small mb-3" id="struct-organism">Trichomonas vaginalis</div>
                     
                     <p class="small text-muted flex-grow-1" id="struct-desc">
-                        Metabolic enzyme comparative model built by AutoModeller from template 1bdm. Optimized with spatial restraint satisfaction and DOPE energy assessment.
+                        Metabolic enzyme comparative model built by AutoMoldel from template 1bdm. Optimized with spatial restraint satisfaction and DOPE energy assessment.
                     </p>
 
                     <div class="p-2 bg-white rounded border mb-3 small">
                         <div class="row g-2">
                             <div class="col-6">
                                 <span class="text-muted d-block">{% if is_pt %}Tipo de Estrutura:{% else %}Structure Type:{% endif %}</span>
-                                <strong id="struct-type">AutoModeller 3D Model</strong>
+                                <strong id="struct-type">AutoMoldel 3D Model</strong>
                             </div>
                             <div class="col-6">
                                 <span class="text-muted d-block">{% if is_pt %}Resolução / DOPE:{% else %}Resolution / DOPE:{% endif %}</span>
@@ -436,7 +436,7 @@
                 modelLabel.textContent = isPt ? "Modelar Esta Estrutura" : "Model This Structure";
             } else {
                 modelBtn.href = `{% url 'experiment_create' %}?structure=${encodeURIComponent(st.id)}`;
-                modelLabel.textContent = isPt ? "Modelar no AutoModeller" : "Model in AutoModeller";
+                modelLabel.textContent = isPt ? "Modelar no AutoMoldel" : "Model in AutoMoldel";
             }
         }
 

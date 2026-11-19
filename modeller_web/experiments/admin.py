@@ -1,8 +1,8 @@
 from django.contrib import admin
 from .models import Experiment, ExperimentResultModel, TemplateCandidate
 
-admin.site.site_header = "AutoModeller WEB — Painel Administrativo Restrito"
-admin.site.site_title = "AutoModeller WEB Admin"
+admin.site.site_header = "AutoMoldel WEB — Painel Administrativo Restrito"
+admin.site.site_title = "AutoMoldel WEB Admin"
 admin.site.index_title = "Gerenciamento de Experimentos e Usuários"
 
 class ExperimentResultModelInline(admin.TabularInline):

@@ -373,7 +373,7 @@ def register_view(request):
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
+            login(request, user, backend='experiments.backends.EmailBackend')
 
             # Reivindica experimentos avulsos da sessão
             session_key = request.session.session_key

@@ -88,7 +88,7 @@ class ExperimentViewsShouldDslTests(TestCase):
         response = self.client.get('/')
         response.status_code |should| equal_to(200)
         content_str = response.content.decode('utf-8')
-        content_str |should| include("AutoModeller")
+        content_str |should| include("AutoMoldel")
         content_str |should| include("Modeller")
         # Default language is English
         content_str |should| include("Featured 3D Structures")
@@ -400,6 +400,19 @@ class ExperimentViewsShouldDslTests(TestCase):
         self.client.force_login(admin_user)
         res_admin = self.client.get('/admin/')
         res_admin.status_code |should| equal_to(200)
+
+    def test_user_registration_with_multiple_backends(self):
+        payload = {
+            'first_name': 'Novo Pesquisador',
+            'last_name': 'UFRJ',
+            'email': 'novo_pesquisador@universidade.edu.br',
+            'password1': 'SenhaForte2026!#',
+            'password2': 'SenhaForte2026!#',
+        }
+        res = self.client.post('/register/', data=payload)
+        res.status_code |should| equal_to(302)
+        res.url |should| equal_to('/experiments/')
+        User.objects.filter(email='novo_pesquisador@universidade.edu.br').exists() |should| equal_to(True)
 
 
 if __name__ == '__main__':
